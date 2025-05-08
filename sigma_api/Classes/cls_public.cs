@@ -1,0 +1,277 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using sigma_api.ModelView;
+
+
+namespace sigma_api.Classes
+{
+    public class cls_public : Connection.sql_db
+    {
+        SqlConnection _con;
+        SqlDataAdapter _dataAdapter;
+        SqlCommand _command;
+        public static messagebase sqlError = new messagebase();
+        public cls_public()
+        {
+            try
+            {
+                _con = connct;//new SqlConnection("Data Source=192.168.233.10; Initial Catalog=SigmaCrm; User ID=sa; Password=sa@12345678;");//connct;
+                _con.Open();
+                _con.Close();
+                sqlError.success = true;
+            }
+            catch (Exception e)
+            {
+
+                sqlError.success = false;
+                sqlError.message = "پایگاه داده در دسترس نیست";
+            }
+        }
+
+        public DataTable select(string StoredProcedure)
+        {
+            DataTable dt = new DataTable();
+            _command = new SqlCommand(StoredProcedure, _con);
+            _command.CommandType = CommandType.StoredProcedure;
+            _dataAdapter = new SqlDataAdapter(_command);
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    _con.Open();
+                }
+                _command.ExecuteNonQuery();
+                _dataAdapter.Fill(dt);
+                return dt;
+            }
+            catch (Exception ex)
+            {
+                if (sqlError.success)
+                    sqlError.message = ex.Message;
+                return null;
+            }
+        }
+
+        public DataTable select_row(string StoredProcedure, SqlParameter[] parameters)
+        {
+            DataTable dt = new DataTable();
+            _command = new SqlCommand(StoredProcedure, _con);
+            _command.CommandType = CommandType.StoredProcedure;
+            _dataAdapter = new SqlDataAdapter(_command);
+            foreach (SqlParameter parameter in parameters)
+            {
+                _command.Parameters.Add(parameter);
+            }
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    try
+                    {
+                        _con.Open();
+                    }
+                    catch
+                    {
+                        sqlError.success = false;
+                    }
+                }
+                _command.ExecuteNonQuery();
+                _dataAdapter.Fill(dt);
+                return dt;
+            }
+            catch (Exception ex)
+            {
+                if (sqlError.success)
+                    sqlError.message = ex.Message;
+                return null;
+            }
+        }
+
+        public DataTable select_command(string Select_command)
+        {
+            DataTable dt = new DataTable();
+            _dataAdapter = new SqlDataAdapter(Select_command, _con);
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    try
+                    {
+                        _con.Open();
+                    }
+                    catch
+                    {
+                        sqlError.success = false;
+                    }
+                }
+                _dataAdapter.Fill(dt);
+                return dt;
+            }
+            catch (Exception ex)
+            {
+                if (sqlError.success)
+                    sqlError.message = ex.Message;
+                return null;
+            }
+        }
+
+        public bool insert(string StoredProcedure, SqlParameter[] parameters)
+        {
+            var result = 0;
+            _command = new SqlCommand(StoredProcedure, _con);
+            _command.CommandType = CommandType.StoredProcedure;
+            foreach (SqlParameter parameter in parameters)
+            {
+                _command.Parameters.Add(parameter);
+            }
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    try
+                    {
+                        _con.Open();
+                    }
+                    catch
+                    {
+                        sqlError.success = false;
+                    }
+                }
+                result = _command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                if (sqlError.success)
+                    sqlError.message = ex.Message;
+                throw;
+            }
+            return result > 0;
+        }
+
+        public int insert_getid(string StoredProcedure, SqlParameter[] parameters)
+        {
+            int id;
+            _command = new SqlCommand(StoredProcedure, _con);
+            _command.CommandType = CommandType.StoredProcedure;
+            foreach (SqlParameter parameter in parameters)
+            {
+                _command.Parameters.Add(parameter);
+            }
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    try
+                    {
+                        _con.Open();
+                    }
+                    catch
+                    {
+                        sqlError.success = false;
+                    }
+                }
+                id = _command.ExecuteScalar().ToInt();
+            }
+            catch (Exception ex)
+            {
+                if (sqlError.success)
+                    sqlError.message = ex.Message;
+                return 0;
+            }
+            return id;
+        }
+
+        public bool update(string StoredProcedure, SqlParameter[] parameters)
+        {
+            var result = 0;
+            _command = new SqlCommand(StoredProcedure, _con);
+            _command.CommandType = CommandType.StoredProcedure;
+            foreach (SqlParameter parameter in parameters)
+            {
+                _command.Parameters.Add(parameter);
+            }
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    try
+                    {
+                        _con.Open();
+                    }
+                    catch
+                    {
+                        sqlError.success = false;
+                    }
+                }
+                result = _command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                if (sqlError.success)
+                    sqlError.message = ex.Message;
+                Console.WriteLine(ex.Message);
+            }
+            return result > 0;
+        }
+
+        public bool delete(string StoredProcedure, SqlParameter[] parameters)
+        {
+            var result = 0;
+            _command = new SqlCommand(StoredProcedure, _con);
+            _command.CommandType = CommandType.StoredProcedure;
+            foreach (SqlParameter parameter in parameters)
+            {
+                _command.Parameters.Add(parameter);
+            }
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    try
+                    {
+                        _con.Open();
+                    }
+                    catch
+                    {
+                        sqlError.success = false;
+                    }
+                }
+
+                result = _command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                if (sqlError.success)
+                    sqlError.message = ex.Message;
+            }
+            return result > 0;
+        }
+
+        public int? max_id(string Table, string Column_id = "id")
+        {
+            DataTable dt = new DataTable();
+            _dataAdapter = new SqlDataAdapter($"select Max({Column_id}) from {Table}", _con);
+            try
+            {
+                _dataAdapter.Fill(dt);
+                if (dt.Rows.Count > 0)
+                {
+                    return dt.Rows[0][0].ToInt() + 1;
+                }
+                else
+                    return 1;
+            }
+            catch (Exception ex)
+            {
+                if (sqlError.success)
+                    sqlError.message = ex.Message;
+            }
+            return null;
+        }
+    }
+}

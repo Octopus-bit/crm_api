@@ -1,0 +1,4 @@
+﻿sigma_api/bin
+sigma_api/obj
+*.suo
+.vs

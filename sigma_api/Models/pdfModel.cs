@@ -1,0 +1,12 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace sigma_api.Models
+{
+    public class pdfModel
+    {
+        public string weburl { get; set; }
+    }
+}

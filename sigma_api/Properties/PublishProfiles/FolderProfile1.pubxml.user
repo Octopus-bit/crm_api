@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+https://go.microsoft.com/fwlink/?LinkID=208121. 
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <_PublishTargetUrl>E:\iis\sigma_api</_PublishTargetUrl>
+    <History>True|2025-04-27T10:45:25.5541591Z;True|2025-04-27T14:05:56.8818135+03:30;True|2025-04-27T13:43:47.1933081+03:30;True|2025-04-27T12:22:03.0605534+03:30;True|2025-04-22T12:33:13.8731675+03:30;True|2025-03-26T11:56:52.8885174+03:30;True|2025-03-26T11:51:12.7825458+03:30;True|2025-01-09T10:20:45.6589487+03:30;True|2025-01-09T08:19:45.2730337+03:30;True|2024-12-23T19:34:16.0797005+03:30;True|2024-12-23T18:50:44.3950865+03:30;</History>
+  </PropertyGroup>
+</Project>
