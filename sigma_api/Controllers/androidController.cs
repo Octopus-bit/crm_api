@@ -36,6 +36,7 @@ namespace sigma_api.Controllers
             }
             else
             {
+
                 if (dt.Rows.Count == 1)
                 {
                     int user_Id = dt.Rows[0]["USR_id"].ToInt();
@@ -108,18 +109,27 @@ namespace sigma_api.Controllers
                 new SqlParameter("Duration",Duration),
                 new SqlParameter("Guid",Guid)
             };
-            int id = cp.insert_getid("SPandroid_CreateCall_insert", parameters2);
+            string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters2);
             if (cls_public.sqlError.success == false)
             {
                 response_call = new androidCallResponseModelView(ErrorCode.DBO_Unavailable.GetHashCode(), cls_public.sqlError.message);
             }
             else
             {
-                if (id > 0 && dt.Rows.Count >= 1)
+                if (id !="0" && dt.Rows.Count >= 1)
                 {
+                    
+                    string[] str = id.Split('?');
+
                     androidCallResponseModel data = new androidCallResponseModel();
-                    data.id = id;
+                    data.id = str[0].ToInt();
                     data.Guid = Guid;
+                    if (str.Length > 1)
+                        data.CustomersName = str[1].ToString();
+                    else
+                    {
+                        data.CustomersName = "";
+                    }
                     data.access = new androidCallResponseModel.data()
                     {
                         SoundRecord = dt.Rows[0]["USR_SoundRecord"].ToBoolean(),

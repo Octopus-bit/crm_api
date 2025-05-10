@@ -9,12 +9,12 @@ namespace sigma_api.ModelView
 {
     public class androidCallResponseModelView : messagebase
     {
-        public androidCallResponseModel resulte { get; set; }
+        public androidCallResponseModel result { get; set; }
         public androidCallResponseModelView(androidCallResponseModel response)
         {
             success = true;
             code = ErrorCode.Created.GetHashCode();
-            resulte = response;
+            result = response;
         }
         public androidCallResponseModelView(int errorCode,string errorMessage = null)
         {

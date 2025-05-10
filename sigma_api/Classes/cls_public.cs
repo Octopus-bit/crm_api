@@ -153,9 +153,9 @@ namespace sigma_api.Classes
             return result > 0;
         }
 
-        public int insert_getid(string StoredProcedure, SqlParameter[] parameters)
+        public string insert_getid(string StoredProcedure, SqlParameter[] parameters)
         {
-            int id;
+            string id;
             _command = new SqlCommand(StoredProcedure, _con);
             _command.CommandType = CommandType.StoredProcedure;
             foreach (SqlParameter parameter in parameters)
@@ -175,13 +175,14 @@ namespace sigma_api.Classes
                         sqlError.success = false;
                     }
                 }
-                id = _command.ExecuteScalar().ToInt();
+
+                id = Convert.ToString(_command.ExecuteScalar());
             }
             catch (Exception ex)
             {
                 if (sqlError.success)
                     sqlError.message = ex.Message;
-                return 0;
+                return "0";
             }
             return id;
         }

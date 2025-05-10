@@ -10,6 +10,7 @@ namespace sigma_api.Models
     {
         public int id { get; set; }
         public string Guid { get; set; }
+        public string CustomersName { get; set; }
         public data access { get; set; }
         public class data
         {
