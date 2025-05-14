@@ -12,29 +12,14 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace sigma_api.Controllers
 {
 
     public class androidController : Controller
     {
-        public int UserId = 0;
-        public androidController()
-        {
-            if (User != null)
-            {
-                UserId = User.FindFirstValue(ClaimTypes.NameIdentifier).ToInt(); // همون از دیتابیس
-                if (UserId <= 0)
-                {
-                    messagebase msg = new messagebase();
-                    msg.success = false;
-                    msg.code = ErrorCode.Authentication.GetHashCode();
-                    msg.message = "عدم احراز هویت";
-                    JsonConvert.SerializeObject(msg);
-                    return;
-                }
-            }
-        }
+
         cls_public cp = new cls_public();
         androidLoginResponseModelView response_login;
         androidCallResponseModelView response_call;
@@ -45,14 +30,29 @@ namespace sigma_api.Controllers
         public string login(androidLoginRequestModelView request)
         {
             string username, password;
+            if (string.IsNullOrEmpty(request.username))
+            {
+                response_login =
+                    new androidLoginResponseModelView(ErrorCode.BadRequest.GetHashCode(),
+                        "نام کاربری خالی میباشد");
+                return JsonConvert.SerializeObject(response_login);
+            }
+            if (string.IsNullOrEmpty(request.password))
+            {
+                response_login =
+                    new androidLoginResponseModelView(ErrorCode.BadRequest.GetHashCode(),
+                        "کلمه عبور خالی میباشد");
+                return JsonConvert.SerializeObject(response_login);
+            }
             username = request.username;
-            password = coding.SigmaEncryptString(coding.SafeFarsiStr(request.password));
+            password = coding.SigmaEncryptString(/*coding.SafeFarsiStr(*/request.password/*)*/);
             SqlParameter[] parameters =
             {
                 new SqlParameter("username",username),
                 new SqlParameter("password",password),
+                new SqlParameter("Type","0")
             };
-            DataTable dt = cp.select_row("SPandroid_CheckUser", parameters);
+            DataTable dt = cp.select_row("API_CheckUser", parameters);
             if (cls_public.sqlError.success == false)
             {
                 response_login = new androidLoginResponseModelView(ErrorCode.DBO_Unavailable.GetHashCode(), cls_public.sqlError.message);
@@ -79,33 +79,19 @@ namespace sigma_api.Controllers
                     }
                     else
                     {
-                        int retry = 1;
-                        bool TokenCreated = false;
-                        while (retry <= 3)
+                        string token = TokenManagement.WriteToken(user_Id, TypeToken.user.GetHashCode());
+                        if (TokenManagement.IsCreated)
                         {
-                            //282ce55d-8ca1-42d8-b561-b62b97a010a3
-                            string token = Guid.NewGuid().ToString();
-                            SqlParameter[] parameters2 =
-                            {
-                                new SqlParameter("user_id", user_Id),
-                                new SqlParameter("token", coding.SigmaEncryptString(token)),
-                            };
-                            if (cp.update("API_SetTokenUsers", parameters2))
-                            {
-                                androidLoginResponseModel data = new androidLoginResponseModel();
-                                data.id = token;
-                                data.fullname = user_Name;
-                                data.access = new androidLoginResponseModel.data();
-                                data.access.SoundRecord = SoundRecord.ToBoolean();
-                                data.access.GpsLocation = GpsLocation.ToBoolean();
-                                response_login = new androidLoginResponseModelView(data);
-                                TokenCreated = true;
-                                break;
-                            }
-                            retry++;
+                            androidLoginResponseModel data = new androidLoginResponseModel();
+                            data.id = token;
+                            data.fullname = user_Name;
+                            data.access = new androidLoginResponseModel.data();
+                            data.access.SoundRecord = SoundRecord.ToBoolean();
+                            data.access.GpsLocation = GpsLocation.ToBoolean();
+                            response_login = new androidLoginResponseModelView(data);
                         }
 
-                        if (!TokenCreated)
+                        else
                         {
                             response_login =
                                 new androidLoginResponseModelView(ErrorCode.Authentication.GetHashCode(),
@@ -134,9 +120,19 @@ namespace sigma_api.Controllers
             string CRC_TimeCall = request.time;
             string mobile = request.mobile;
             int State = request.state;
-            int user_id = UserId;
+            int user_id = HttpContext.Items["UserId"].ToInt();
             string Duration = request.duration;
             string Guid = request.Guid;
+            if (user_id == 0)
+            {
+                messagebase m = new messagebase()
+                {
+                    code = ErrorCode.Authentication.GetHashCode(),
+                    success = false,
+                    message = "عدم احراز هویت"
+                };
+                return JsonConvert.SerializeObject(m);
+            }
             if (mobile.StartsWith("98"))
             {
                 mobile = "+" + mobile;

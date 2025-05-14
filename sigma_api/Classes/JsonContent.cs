@@ -55,6 +55,19 @@ namespace sigma_api.Classes
         /// </summary>
         DBO_Unavailable = 301
     }
+
+    public enum TypeToken : int
+    {
+        /// <summary>
+        /// توکن کاربران crm
+        /// </summary>
+        user = 0,
+        /// <summary>
+        /// توکن مشتریان crm
+        /// </summary>
+        customer = 1
+    }
+
     public class JsonContent : StringContent
     {
         public JsonContent(object obj) : base(JsonConvert.SerializeObject(obj.ToString()), Encoding.UTF8, "application/json") { }

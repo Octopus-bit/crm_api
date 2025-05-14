@@ -27,7 +27,13 @@ namespace sigma_api
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+
             services.AddControllers();
+
+            services.AddControllers(options =>
+            {
+                options.Filters.Add(new ExtractClaimsFilter());
+            });
 
             // Swagger Configuration
             services.AddSwaggerGen(c =>
@@ -57,8 +63,8 @@ namespace sigma_api
             });
 
             // اضافه کردن اسکیم اتنتیکیشن سفارشی
-            services.AddAuthentication("GuidScheme")
-                .AddScheme<AuthenticationSchemeOptions, GuidAuthenticationHandler>("GuidScheme", null);
+            services.AddAuthentication("Authentication")
+                .AddScheme<AuthenticationSchemeOptions, GuidAuthenticationHandler>("Authentication", null);
 
             services.AddAuthorization();
         }

@@ -7,7 +7,7 @@ namespace sigma_api.Models
 {
     public class crmLoginResponseModel
     {
-        public int id { get; set; }
+        public string id { get; set; }
         public string Type { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }

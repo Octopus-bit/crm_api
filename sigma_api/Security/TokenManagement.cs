@@ -1,0 +1,64 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Data;
+using System.Data.SqlClient;
+using sigma_api.Classes;
+
+namespace sigma_api.Security
+{
+    public class TokenManagement
+    {
+        public static bool IsCreated = false;
+        public static string WriteToken(int UserId, int TypeToken)
+        {
+            string token = null;
+            cls_public cp = new cls_public();
+            int retry = 1;
+            while (retry <= 3)
+            {
+                token = Guid.NewGuid().ToString();
+                SqlParameter[] parameters2 =
+                {
+                    new SqlParameter("user_id", UserId),
+                    new SqlParameter("token", coding.SigmaEncryptString(token)),
+                    new SqlParameter("typeToken", TypeToken),
+                };
+                if (cp.update("API_SetTokenUsers", parameters2))
+                {
+                    IsCreated = true;
+                    break;
+                }
+                else
+                {
+                    token = null;
+                }
+                retry++;
+            }
+
+            return token;
+        }
+
+        public static int ReadToken(string token)
+        {
+            int UserId = 0;
+            cls_public cp = new cls_public();
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                if (token.StartsWith("Bearer "))
+                {
+                    token = token.Substring("Bearer ".Length);
+                }
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("token",coding.SigmaEncryptString(token)),
+                };
+                UserId = cp.select_row("API_GetUserByToken", parameters).Rows[0][0].ToInt();
+            }
+            return UserId;
+        }
+    }
+}
