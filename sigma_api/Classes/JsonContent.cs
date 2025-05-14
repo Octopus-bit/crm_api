@@ -31,9 +31,13 @@ namespace sigma_api.Classes
         /// </summary>
         Duplicate = 204,
         /// <summary>
+        /// عدم احراز هویت
+        /// </summary>
+        Authentication = 100,
+        /// <summary>
         /// نام کاربری یا کلمه عبور نادرست
         /// </summary>
-        Authentication = 101,
+        InvalidUser = 101,
         /// <summary>
         /// عدم دسترسی
         /// </summary>

@@ -7,7 +7,7 @@ namespace sigma_api.Models
 {
     public class androidLoginResponseModel
     {
-        public int id { get; set; }
+        public string id { get; set; }
         public string fullname { get; set; }
         public data access { get; set; }
         public class data

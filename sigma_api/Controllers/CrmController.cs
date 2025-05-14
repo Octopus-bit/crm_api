@@ -68,7 +68,7 @@ namespace sigma_api.Controllers
                 }
                 else
                 {
-                    response_login = new crmLoginResponseModelView(ErrorCode.Authentication.GetHashCode(), "نام کاربری یا کلمه عبور اشتباه میباشد");
+                    response_login = new crmLoginResponseModelView(ErrorCode.InvalidUser.GetHashCode(), "نام کاربری یا کلمه عبور اشتباه میباشد");
                 }
             }
 
