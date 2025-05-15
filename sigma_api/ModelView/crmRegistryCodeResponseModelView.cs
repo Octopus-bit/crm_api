@@ -9,13 +9,13 @@ namespace sigma_api.ModelView
 {
     public class crmRegistryCodeResponseModelView : messagebase
     {
-        public crmLoginResponseModel resulte { get; set; }
+        public crmLoginResponseModel results { get; set; }
         public crmRegistryCodeResponseModelView(bool status,int Code, string Message = null,crmLoginResponseModel response = null)
         {
             success = status;
             code = Code;
             message = Message;
-            resulte = response;
+            results = response;
         }
     }
 }

@@ -60,6 +60,8 @@ namespace sigma_api
                 {
                     { guidTokenScheme, Array.Empty<string>() }
                 });
+
+                c.OperationFilter<AuthOperationFilter>();
             });
 
             // اضافه کردن اسکیم اتنتیکیشن سفارشی

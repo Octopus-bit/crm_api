@@ -115,15 +115,16 @@ namespace sigma_api.Controllers
         [Authorize]
         public string call(androidCallRequestModelView request)
         {
-
+            string CustomerFullName = "";
             string CRC_createdate = request.date;
             string CRC_TimeCall = request.time;
             string mobile = request.mobile;
             int State = request.state;
-            int user_id = HttpContext.Items["UserId"].ToInt();
+            int Type = request.type;
+            int UserId = HttpContext.Items["UserId"].ToInt();
             string Duration = request.duration;
-            string Guid = request.Guid;
-            if (user_id == 0)
+
+            if (UserId == 0)
             {
                 messagebase m = new messagebase()
                 {
@@ -146,20 +147,29 @@ namespace sigma_api.Controllers
 
             SqlParameter[] parameters =
             {
-                    new SqlParameter("USR_id", user_id),
-                };
+                    new SqlParameter("USR_id", UserId),
+            };
             DataTable dt = cp.select_row("SPandroid_GetAccessUser", parameters);
             SqlParameter[] parameters2 =
+            {
+                    new SqlParameter("Mobile", mobile),
+            };
+            DataTable dt_InfoCustomer = cp.select_row("API_CustomerInfo", parameters2);
+            if (dt_InfoCustomer.Rows.Count > 0)
+            {
+                CustomerFullName = dt_InfoCustomer.Rows[0]["fullname"].ToString();
+            }
+            SqlParameter[] parameters3 =
             {
                     new SqlParameter("CRC_createdate", CRC_createdate),
                     new SqlParameter("CRC_TimeCall", CRC_TimeCall),
                     new SqlParameter("mobile", mobile),
                     new SqlParameter("State", State),
-                    new SqlParameter("user_id", user_id),
+                    new SqlParameter("Type", Type),
+                    new SqlParameter("user_id", UserId),
                     new SqlParameter("Duration", Duration),
-                    new SqlParameter("Guid", Guid)
                 };
-            string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters2);
+            string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters3);
             if (cls_public.sqlError.success == false)
             {
                 response_call = new androidCallResponseModelView(ErrorCode.DBO_Unavailable.GetHashCode(),
@@ -169,18 +179,9 @@ namespace sigma_api.Controllers
             {
                 if (id != "0" && dt.Rows.Count >= 1)
                 {
-
-                    string[] str = id.Split('?');
-
                     androidCallResponseModel data = new androidCallResponseModel();
-                    data.id = str[0].ToInt();
-                    data.Guid = Guid;
-                    if (str.Length > 1)
-                        data.CustomersName = str[1].ToString();
-                    else
-                    {
-                        data.CustomersName = "";
-                    }
+                    data.id = id.ToInt();
+                    data.CustomersName = CustomerFullName;
 
                     data.access = new androidCallResponseModel.data()
                     {
@@ -210,11 +211,19 @@ namespace sigma_api.Controllers
 
 
         [HttpPost]
-        [Route("api/[Controller]/call/{call_id}")]
+        [Route("api/[Controller]/call/{call_id?}")]
         [Authorize]
         public string call_update(androidCallRequestModelView.androidUpdateCallRequestModelView request)
         {
             messagebase mes = new messagebase();
+
+            if (!Request.RouteValues.TryGetValue("call_id", out var callIdObj) || callIdObj == null)
+            {
+                mes.success = false;
+                mes.code = ErrorCode.BadRequest.GetHashCode();
+                mes.message = "not found call_id";
+                return JsonConvert.SerializeObject(mes);
+            }
 
             int call_id = Request.RouteValues["call_id"].ToInt();
             //string call_id = Request.RouteValues["call_id"].ToString();

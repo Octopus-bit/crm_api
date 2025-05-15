@@ -12,8 +12,8 @@ namespace sigma_api.ModelView
         public string date { get; set; }
         public string time { get; set; }
         public int state { get; set; }
+        public int type { get; set; }
         public string duration{ get; set; }
-        public string Guid{ get; set; }
         public class androidUpdateCallRequestModelView
         {
             public string commands { get; set; }

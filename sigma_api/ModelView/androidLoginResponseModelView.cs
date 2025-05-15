@@ -10,12 +10,12 @@ namespace sigma_api.ModelView
 {
     public class androidLoginResponseModelView : messagebase
     {
-        public androidLoginResponseModel resulte { get; set; }
+        public androidLoginResponseModel results { get; set; }
         public androidLoginResponseModelView(androidLoginResponseModel response)
         {
             success = true;
             code = ErrorCode.Send.GetHashCode();
-            resulte = response;
+            results = response;
         }
         public androidLoginResponseModelView(int errorCode,string errorMessage = null)
         {

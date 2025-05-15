@@ -9,12 +9,12 @@ namespace sigma_api.ModelView
 {
     public class crmLoginResponseModelView : messagebase
     {
-        public crmLoginResponseModel resulte { get; set; }
+        public crmLoginResponseModel results { get; set; }
         public crmLoginResponseModelView(crmLoginResponseModel response)
         {
             success = true;
             code = ErrorCode.Send.GetHashCode();
-            resulte = response;
+            results = response;
         }
         public crmLoginResponseModelView(int errorCode, string errorMessage = null)
         {

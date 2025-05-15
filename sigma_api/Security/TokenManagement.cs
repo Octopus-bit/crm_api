@@ -40,9 +40,8 @@ namespace sigma_api.Security
             return token;
         }
 
-        public static int ReadToken(string token)
+        public static DataTable ReadToken(string token)
         {
-            int UserId = 0;
             cls_public cp = new cls_public();
 
             if (!string.IsNullOrEmpty(token))
@@ -56,9 +55,9 @@ namespace sigma_api.Security
                 {
                     new SqlParameter("token",coding.SigmaEncryptString(token)),
                 };
-                UserId = cp.select_row("API_GetUserByToken", parameters).Rows[0][0].ToInt();
+                return cp.select_row("API_GetUserByToken", parameters);
             }
-            return UserId;
+            return null;
         }
     }
 }

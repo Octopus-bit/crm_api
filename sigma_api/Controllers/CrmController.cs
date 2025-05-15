@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using sigma_api.ModelView;
@@ -10,6 +11,7 @@ using sigma_api.Classes;
 using sigma_api.Security;
 using System.Data;
 using System.Data.SqlClient;
+using Microsoft.AspNetCore.Authorization;
 
 namespace sigma_api.Controllers
 {
@@ -147,6 +149,42 @@ namespace sigma_api.Controllers
             }
 
             return JsonConvert.SerializeObject(response_RegistryCode);
+        }
+
+        [Authorize]
+        [HttpPut]
+        [Route("api/[controller]/password-recovery")]
+        public string CheangPassword([Required] string NewPassword)
+        {
+            messagebase m = new messagebase();
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            if (UserId == 0)
+            {
+
+                m.code = ErrorCode.Authentication.GetHashCode();
+                m.success = false;
+                m.message = "عدم احراز هویت";
+                
+                return JsonConvert.SerializeObject(m);
+            }
+            SqlParameter[] parameters =
+            {
+                new SqlParameter("UserId", UserId),
+                new SqlParameter("Password", coding.SigmaEncryptString(NewPassword)),
+            };
+            if (cp.update("API_CheangPasswordUser",parameters))
+            {
+                m.code = ErrorCode.Created.GetHashCode();
+                m.success = true;
+                m.message = "کلمه عبور با موفقیت تغییر کرد";
+            }
+            else
+            {
+                m.code = ErrorCode.Conflict.GetHashCode();
+                m.success = false;
+                m.message = "تغییر کلمه عبور با مشکل مواجه شد";
+            }
+            return JsonConvert.SerializeObject(m);
         }
     }
 }
