@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using sigma_api;
 using sigma_api.Classes;
+using sigma_api.ModelView;
 using sigma_api.Security;
 
 public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
@@ -25,19 +26,21 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
     {
     }
 
-
+    private string _errorJson = null!;
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (!Request.Headers.ContainsKey("Token"))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Missing Token Header"));
+            _errorJson = messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "Missing Token Header");
+            return Task.FromResult(AuthenticateResult.Fail("Unauthorized"));
         }
 
         var token = Request.Headers["Token"].ToString();
 
         if (!Guid.TryParse(token, out var guid))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Invalid Token"));
+            _errorJson = messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "Invalid Token");
+            return Task.FromResult(AuthenticateResult.Fail("Unauthorized"));
         }
 
         // اینجا می‌تونی مثلا چک کنی که GUID تو دیتابیس معتبر باشه یا نه
@@ -46,7 +49,8 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
 
         if (dt_UserInfo.Rows.Count <= 0)
         {
-            return Task.FromResult(AuthenticateResult.Fail("Failure to authenticate"));
+            _errorJson = messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "Failure to authenticate");
+            return Task.FromResult(AuthenticateResult.Fail("Unauthorized"));
         }
 
 
@@ -69,11 +73,15 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
 
             if (controllerName == "Crm" && UserType == 0)
             {
-                return Task.FromResult(AuthenticateResult.Fail("Failure to authenticate"));
+                _errorJson = messagebase.messages(false, ErrorCode.Authentication.GetHashCode(),
+                    "Failure to authenticate");
+                return Task.FromResult(AuthenticateResult.Fail("Unauthorized"));
             }
             else if (controllerName == "android" && UserType == 1)
             {
-                return Task.FromResult(AuthenticateResult.Fail("Failure to authenticate"));
+                _errorJson = messagebase.messages(false, ErrorCode.Authentication.GetHashCode(),
+                    "Failure to authenticate");
+                return Task.FromResult(AuthenticateResult.Fail("Unauthorized"));
             }
         }
 
@@ -91,5 +99,17 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
 
         return Task.FromResult(AuthenticateResult.Success(ticket));
 
+    }
+    protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+    {
+        Context.Response.StatusCode = 200; // چون می‌خوایم JSON برگردونیم، نه 401
+        //Context.Response.ContentType = "application/json";
+        Context.Response.ContentType = "text/plain";
+
+        var responseJson = string.IsNullOrWhiteSpace(_errorJson)
+            ? messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "Failure to authenticate")
+            : _errorJson;
+
+        return Context.Response.WriteAsync(responseJson);
     }
 }

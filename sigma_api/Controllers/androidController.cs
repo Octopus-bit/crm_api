@@ -23,6 +23,7 @@ namespace sigma_api.Controllers
         cls_public cp = new cls_public();
         androidLoginResponseModelView response_login;
         androidCallResponseModelView response_call;
+        androidCallBatchResponseModelView response_callBatch;
 
         [HttpPost]
         [Route("api/[Controller]/login")]
@@ -207,6 +208,187 @@ namespace sigma_api.Controllers
 
 
             return JsonConvert.SerializeObject(response_call);
+        }
+
+        [HttpPost]
+        [Route("api/[Controller]/call/Batch")]
+        [Authorize]
+        public string call([FromBody] List<androidCallBatchRequestModelView> request)
+        {
+            bool check = true;
+            bool error = false;
+            string CustomerFullName = "";
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            if (UserId == 0)
+            {
+                return messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "عدم احراز هویت");
+            }
+            if (request == null || !request.Any())
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "اطلاعات ارسال شده ناقص میباشد");
+            }
+
+            SqlTransaction transaction = cp.Transaction("CallBatch");
+            List<androidCallBatchResponseModel> callBatch = new List<androidCallBatchResponseModel>();
+            foreach (androidCallBatchRequestModelView item in request)
+            {
+                try
+                {
+
+                    if (string.IsNullOrEmpty(item.guid))
+                    {
+                        check = false;
+                        break;
+                    }
+                    if (string.IsNullOrEmpty(item.mobile))
+                    {
+                        check = false;
+                        break;
+                    }
+                    if (string.IsNullOrEmpty(item.date))
+                    {
+                        check = false;
+                        break;
+                    }
+                    if (string.IsNullOrEmpty(item.time))
+                    {
+                        check = false;
+                        break;
+                    }
+                    if (string.IsNullOrEmpty(item.duration))
+                    {
+                        check = false;
+                        break;
+                    }
+                    if (string.IsNullOrEmpty(item.state.ToString()))
+                    {
+                        check = false;
+                        break;
+                    }
+                    if (string.IsNullOrEmpty(item.type.ToString()))
+                    {
+                        check = false;
+                        break;
+                    }
+
+                    if (item.mobile.StartsWith("98"))
+                    {
+                        item.mobile = "+" + item.mobile;
+                        item.mobile = item.mobile.Replace("+98", "0");
+                    }
+
+                    if (item.mobile.StartsWith("+98"))
+                    {
+                        item.mobile = item.mobile.Replace("+98", "0");
+                    }
+
+                    SqlParameter[] parameters2 =
+                    {
+                    new SqlParameter("Mobile", item.mobile),
+                };
+                    DataTable dt_InfoCustomer = cp.select_row("API_CustomerInfo", parameters2, transaction);
+                    if (dt_InfoCustomer.Rows.Count > 0)
+                    {
+                        CustomerFullName = dt_InfoCustomer.Rows[0]["fullname"].ToString();
+                    }
+                    SqlParameter[] parameters3 =
+                    {
+                    new SqlParameter("CRC_createdate", item.date),
+                    new SqlParameter("CRC_TimeCall", item.time),
+                    new SqlParameter("mobile", item.mobile),
+                    new SqlParameter("State", item.state),
+                    new SqlParameter("Type", item.type),
+                    new SqlParameter("user_id", UserId),
+                    new SqlParameter("Duration", item.duration),
+                };
+                    string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters3, transaction);
+                    if (id != "0")
+                    {
+
+
+                        if (item.Description == null)
+                        {
+                            callBatch.Add(new androidCallBatchResponseModel()
+                            {
+                                status = true,
+                                guid = item.guid,
+                                CustomersName = CustomerFullName,
+                                id = id.ToInt()
+                            });
+                        }
+                        else
+                        {
+                            SqlParameter[] parameters =
+                            {
+                            new SqlParameter("CRC_id", id),
+                            new SqlParameter("cammands", item.Description.commands),
+                            new SqlParameter("alarm_date", item.Description.alarm_date),
+                            new SqlParameter("alarm_time", item.Description.alarm_time),
+                            new SqlParameter("alarm_desc", item.Description.alarm_desc),
+                            new SqlParameter("location", item.Description.location)
+                        };
+
+                            if (cp.update("SPandroid_CreateCall_update", parameters, transaction))
+                            {
+                                callBatch.Add(new androidCallBatchResponseModel()
+                                {
+                                    status = true,
+                                    guid = item.guid,
+                                    CustomersName = CustomerFullName,
+                                    id = null,
+                                });
+                            }
+                            else
+                            {
+                                callBatch.Add(new androidCallBatchResponseModel()
+                                {
+                                    status = true,
+                                    guid = item.guid,
+                                    CustomersName = CustomerFullName,
+                                    id = id.ToInt()
+                                });
+                            }
+                        }
+                    }
+                    else
+                    {
+                        callBatch.Add(new androidCallBatchResponseModel()
+                        {
+                            status = false,
+                            guid = item.guid,
+                            CustomersName = CustomerFullName,
+                            id = null
+                        });
+                    }
+                }
+                catch (Exception e)
+                {
+                    check = false;
+                    error = true;
+                    break;
+                }
+            }
+            if (cls_public.sqlError.success == false)
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "پایگاه داده در دسترس نیست");
+            if (check)
+            {
+                transaction.Commit();
+                transaction.Dispose();
+                response_callBatch = new androidCallBatchResponseModelView(callBatch);
+                return JsonConvert.SerializeObject(response_callBatch);
+            }
+            else
+            {
+                transaction.Rollback();
+                transaction.Dispose();
+                if (error)
+                    if (cls_public.sqlError.message != null)
+                        return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "اطلاعات ارسال شده ناقص میباشد");
+                    else
+                        return messagebase.messages(false, ErrorCode.Conflict.GetHashCode(), "عملیات با موفقیت انجام نشد");
+                else
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "اطلاعات ارسال شده ناقص میباشد");
+            }
         }
 
 

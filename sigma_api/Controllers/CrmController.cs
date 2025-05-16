@@ -92,7 +92,7 @@ namespace sigma_api.Controllers
         [HttpPost("api/[controller]/create-account")]
         public string signup()
         {
-            return null;
+            return "";
         }
 
         [HttpPost]

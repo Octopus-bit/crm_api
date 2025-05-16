@@ -33,11 +33,25 @@ namespace sigma_api.Classes
             }
         }
 
-        public DataTable select(string StoredProcedure)
+        public void close()
+        {
+            if (_con.State == ConnectionState.Open)
+                _con.Close();
+        }
+
+        public SqlTransaction Transaction(string name) // ایجاد ترنزکشن
+        {
+            if (_con.State != ConnectionState.Open)
+                _con.Open();
+            return _con.BeginTransaction(name);
+        }
+
+        public DataTable select(string StoredProcedure, SqlTransaction transaction = null)
         {
             DataTable dt = new DataTable();
             _command = new SqlCommand(StoredProcedure, _con);
             _command.CommandType = CommandType.StoredProcedure;
+            _command.Transaction = transaction;
             _dataAdapter = new SqlDataAdapter(_command);
             try
             {
@@ -57,11 +71,12 @@ namespace sigma_api.Classes
             }
         }
 
-        public DataTable select_row(string StoredProcedure, SqlParameter[] parameters)
+        public DataTable select_row(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
             DataTable dt = new DataTable();
             _command = new SqlCommand(StoredProcedure, _con);
             _command.CommandType = CommandType.StoredProcedure;
+            _command.Transaction = transaction;
             _dataAdapter = new SqlDataAdapter(_command);
             foreach (SqlParameter parameter in parameters)
             {
@@ -92,10 +107,12 @@ namespace sigma_api.Classes
             }
         }
 
-        public DataTable select_command(string Select_command)
+        public DataTable select_command(string Select_command, SqlTransaction transaction = null)
         {
             DataTable dt = new DataTable();
             _dataAdapter = new SqlDataAdapter(Select_command, _con);
+            _command.Transaction = transaction;
+            _command.Parameters.Clear();
             try
             {
                 if (_con.State != ConnectionState.Open)
@@ -120,11 +137,12 @@ namespace sigma_api.Classes
             }
         }
 
-        public bool insert(string StoredProcedure, SqlParameter[] parameters)
+        public bool insert(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
             var result = 0;
             _command = new SqlCommand(StoredProcedure, _con);
             _command.CommandType = CommandType.StoredProcedure;
+            _command.Transaction = transaction;
             foreach (SqlParameter parameter in parameters)
             {
                 _command.Parameters.Add(parameter);
@@ -153,11 +171,12 @@ namespace sigma_api.Classes
             return result > 0;
         }
 
-        public string insert_getid(string StoredProcedure, SqlParameter[] parameters)
+        public string insert_getid(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
             string id;
             _command = new SqlCommand(StoredProcedure, _con);
             _command.CommandType = CommandType.StoredProcedure;
+            _command.Transaction = transaction;
             foreach (SqlParameter parameter in parameters)
             {
                 _command.Parameters.Add(parameter);
@@ -187,11 +206,12 @@ namespace sigma_api.Classes
             return id;
         }
 
-        public bool update(string StoredProcedure, SqlParameter[] parameters)
+        public bool update(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
             var result = 0;
             _command = new SqlCommand(StoredProcedure, _con);
             _command.CommandType = CommandType.StoredProcedure;
+            _command.Transaction = transaction;
             foreach (SqlParameter parameter in parameters)
             {
                 _command.Parameters.Add(parameter);
@@ -220,11 +240,12 @@ namespace sigma_api.Classes
             return result > 0;
         }
 
-        public bool delete(string StoredProcedure, SqlParameter[] parameters)
+        public bool delete(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
             var result = 0;
             _command = new SqlCommand(StoredProcedure, _con);
             _command.CommandType = CommandType.StoredProcedure;
+            _command.Transaction = transaction;
             foreach (SqlParameter parameter in parameters)
             {
                 _command.Parameters.Add(parameter);
@@ -252,7 +273,35 @@ namespace sigma_api.Classes
             }
             return result > 0;
         }
-
+        public bool command(string command, SqlTransaction transaction = null) // تابع insert به همراه دریافت لیست پارامتر
+        {
+            var result = 0;
+            _command = new SqlCommand(command, _con);
+            _command.CommandType = CommandType.Text;
+            _command.Transaction = transaction;
+            _command.Parameters.Clear();
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    try
+                    {
+                        _con.Open();
+                    }
+                    catch
+                    {
+                        sqlError.success = false;
+                    }
+                }
+                result = _command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                if (sqlError.success)
+                    sqlError.message = ex.Message;
+            }
+            return result > 0;
+        }
         public int? max_id(string Table, string Column_id = "id")
         {
             DataTable dt = new DataTable();
