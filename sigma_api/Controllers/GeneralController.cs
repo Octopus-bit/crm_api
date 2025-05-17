@@ -12,6 +12,7 @@ using Newtonsoft.Json;
 using sigma_api.Classes;
 using sigma_api.Models;
 using sigma_api.ModelView;
+using sigma_api.Security;
 
 namespace sigma_api.Controllers
 {
@@ -57,6 +58,23 @@ namespace sigma_api.Controllers
                 response_InfoCustomer = new generalInfoCustomerResponseModelView(null);
             }
             return JsonConvert.SerializeObject(response_InfoCustomer);
+        }
+
+        [Authorize]
+        [HttpDelete]
+        [Route("api/[controller]/logout")]
+        public string logout()
+        {
+            string token = coding.SigmaEncryptString(HttpContext.Items["token"].ToString());
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            if (cp.command($"UPDATE dbo.API_Tokens SET tk_AtCreate = GETDATE()-1 WHERE tk_Token = '{token}' and tk_UserIdRef = {UserId}"))
+            {
+                return messagebase.messages(true, ErrorCode.Send.GetHashCode(), "Token successfully revoked.");
+            }
+            else
+            {
+                return messagebase.messages(false, ErrorCode.Created.GetHashCode(), "Token was not successfully revoked.");
+            }
         }
     }
 }

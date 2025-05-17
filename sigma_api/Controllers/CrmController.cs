@@ -96,7 +96,7 @@ namespace sigma_api.Controllers
         }
 
         [HttpPost]
-        [Route("api/[controller]/registryCode")]
+        [Route("api/[controller]/forgot-password")]
         public string RegistryCode(crmRegistryCodeRequestModelView request)
         {
             string mobile;
@@ -153,7 +153,7 @@ namespace sigma_api.Controllers
 
         [Authorize]
         [HttpPut]
-        [Route("api/[controller]/password-recovery")]
+        [Route("api/[controller]/reset-password")]
         public string CheangPassword([Required] string NewPassword)
         {
             messagebase m = new messagebase();
