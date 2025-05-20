@@ -43,10 +43,20 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
             return Task.FromResult(AuthenticateResult.Fail("Unauthorized"));
         }
 
+        DataTable dt_UserInfo = new DataTable();
         // اینجا می‌تونی مثلا چک کنی که GUID تو دیتابیس معتبر باشه یا نه
-
-        DataTable dt_UserInfo = TokenManagement.ReadToken(token.ToString());
-
+        try
+        {
+            dt_UserInfo = TokenManagement.ReadToken(token.ToString());
+        }
+        catch
+        { }
+        if (cls_public.sqlError.success == false)
+        {
+            _errorJson = messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(),
+                cls_public.sqlError.message);
+            return Task.FromResult(AuthenticateResult.Fail("DBO_Unavailable"));
+        }
         if (dt_UserInfo.Rows.Count <= 0)
         {
             _errorJson = messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "Failure to authenticate");
@@ -58,6 +68,12 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
         int UserType = dt_UserInfo.Rows[0]["UserType"].ToInt();
         int UserId = dt_UserInfo.Rows[0]["UserId"].ToInt();
         string FullName = dt_UserInfo.Rows[0]["FullName"].ToString();
+
+        if (UserId == 0)
+        {
+            _errorJson = messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "Failure to authenticate");
+            return Task.FromResult(AuthenticateResult.Fail("Unauthorized"));
+        }
 
         var endpoint = Context.GetEndpoint();
         if (endpoint != null)
