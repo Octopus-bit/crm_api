@@ -56,10 +56,10 @@ namespace sigma_api
 
                 c.AddSecurityDefinition("Token", guidTokenScheme);
 
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement
-                {
-                    { guidTokenScheme, Array.Empty<string>() }
-                });
+                //c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                //{
+                //    { guidTokenScheme, Array.Empty<string>() }
+                //});
 
                 c.OperationFilter<AuthOperationFilter>();
             });

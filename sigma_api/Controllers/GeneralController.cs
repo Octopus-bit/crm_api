@@ -6,6 +6,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
@@ -33,6 +34,16 @@ namespace sigma_api.Controllers
                 mes.code = ErrorCode.BadRequest.GetHashCode();
                 mes.message = "not found mobile";
                 return JsonConvert.SerializeObject(mes);
+            }
+            if (mobile.StartsWith("98"))
+            {
+                mobile = "+" + mobile;
+                mobile = mobile.Replace("+98", "0");
+            }
+
+            if (mobile.StartsWith("+98"))
+            {
+                mobile = mobile.Replace("+98", "0");
             }
             SqlParameter[] parameters2 =
             {

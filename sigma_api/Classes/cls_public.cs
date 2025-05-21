@@ -5,6 +5,7 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using sigma_api.ModelView;
 
 
@@ -46,6 +47,46 @@ namespace sigma_api.Classes
             return _con.BeginTransaction(name);
         }
 
+        public DateTime GetDateTime(SqlTransaction transaction = null)
+        {
+            DateTime getdate = new DateTime();
+            SqlCommand cmdLog = new SqlCommand("", _con);
+            cmdLog.Transaction = transaction;
+            cmdLog.CommandType = CommandType.Text;
+            cmdLog.CommandText = "Select getdate()";
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    _con.Open();
+                }
+
+                string getdatee = cmdLog.ExecuteScalar().ToString();
+                if (_con.State == ConnectionState.Open)
+                {
+                    _con.Close();
+                }
+                getdate = Convert.ToDateTime(getdatee);
+
+            }
+            catch
+            {
+                if (_con.State == ConnectionState.Open)
+                {
+                    _con.Close();
+                }
+
+            }
+            finally
+            {
+                if (_con.State == ConnectionState.Open)
+                {
+                    _con.Close();
+                }
+
+            }
+            return getdate;
+        }
         public DataTable select(string StoredProcedure, SqlTransaction transaction = null)
         {
             DataTable dt = new DataTable();
@@ -110,9 +151,10 @@ namespace sigma_api.Classes
         public DataTable select_command(string Select_command, SqlTransaction transaction = null)
         {
             DataTable dt = new DataTable();
-            _dataAdapter = new SqlDataAdapter(Select_command, _con);
+            _command = new SqlCommand(Select_command, _con);
             _command.Transaction = transaction;
             _command.Parameters.Clear();
+            _dataAdapter = new SqlDataAdapter(_command);
             try
             {
                 if (_con.State != ConnectionState.Open)
