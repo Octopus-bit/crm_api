@@ -31,6 +31,33 @@ namespace sigma_api.Models
         public Detail[] Details { get; set; }
         public class Detail
         {
+            public int id { get; set; } // شناسه ایتم پیش فاکتور
+            public string Code { get; set; } // کد کالا
+            public string StockTitle { get; set; } // نام انبار
+            public string Title { get; set; } // نام کالا
+            public string SupplierId { get; set; } // شناسه تامین کننده 
+            public string SupplierName { get; set; } // نام تامین کننده
+            public string Unit1 { get; set; } // واحد اصلی
+            public double value { get; set; } // تعداد
+            public double valueSecondary { get; set; } // تعداد دوم
+            public double fee { get; set; } // فی
+            public double Price { get; set; } // مبلغ کل
+            public double Discount { get; set; } // مبلغ تخفیف ردیف
+            public double DistinctPercent { get; set; } //درصد تخفیف ردیف
+            public double Tax { get; set; } // مالیات
+            public double Duty { get; set; }//عوارض
+            public double Addition { get; set; } // اضافات
+            public double NetPrice { get; set; } // 
+            public string Unit2 { get; set; } //  واحد دوم
+            public string Nesabt { get; set; } // نسبت دارد یا ندارد
+            public double NesbatValue { get; set; } // نسبت ولیو
+            public double Item_tax { get; set; } // مالیات
+            public double Item_duty { get; set; } // 
+            public int Item_id { get; set; } // شناسه کالا
+            public string StockId { get; set; } // شناسه انبار
+            public string DistinctCustomersBrand { get; set; } // درصد تخفیف مشتری روی برند
+            public string ItemStock_Id { get; set; } // شناسه کالا و انبار
+            public string ItemBrand { get; set; } // نام برند
 
         }
     }

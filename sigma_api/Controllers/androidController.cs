@@ -90,15 +90,14 @@ namespace sigma_api.Controllers
                             data.access.SoundRecord = SoundRecord.ToBoolean();
                             data.access.GpsLocation = GpsLocation.ToBoolean();
                             response_login = new androidLoginResponseModelView(data);
+                            HttpContext.Response.Headers.Add("Token", token);
                         }
-
                         else
                         {
                             response_login =
                                 new androidLoginResponseModelView(ErrorCode.Authentication.GetHashCode(),
                                     "احراز هویت با مشکل مواجه شد");
                         }
-
                     }
                 }
                 else

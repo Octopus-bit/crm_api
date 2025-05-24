@@ -22,6 +22,7 @@ namespace sigma_api.Controllers
         crmRegistryCodeResponseModelView response_RegistryCode;
         crmItemListResponseModelView response_items;
         crmQuotationsResponseModelView response_quotations;
+        generalInfoCustomerResponseModelView response_InfoCustomer;
 
         [HttpPost]
         [Route("api/[controller]/login")]
@@ -72,7 +73,7 @@ namespace sigma_api.Controllers
                             data.Email = Email;
                             data.Birthdate = Birthdate;
                             response_login = new crmLoginResponseModelView(data);
-
+                            HttpContext.Response.Headers.Add("Token", token);
                         }
                         else
                         {
@@ -88,7 +89,6 @@ namespace sigma_api.Controllers
                     response_login = new crmLoginResponseModelView(ErrorCode.InvalidUser.GetHashCode(), "نام کاربری یا کلمه عبور اشتباه میباشد");
                 }
             }
-
             return JsonConvert.SerializeObject(response_login);
         }
 
@@ -97,6 +97,44 @@ namespace sigma_api.Controllers
         public string signup()
         {
             return "";
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/get-info-customer")]
+        public string getInfoCustomer()
+        {
+            messagebase mes = new messagebase();
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            SqlParameter[] parameters2 =
+            {
+                new SqlParameter("CustomerId", UserId),
+            };
+            DataTable dt_InfoCustomer = cp.select_row("API_GetCustomerInfoById", parameters2);
+            if (dt_InfoCustomer.Rows.Count > 0)
+            {
+                generalInfoCustomerResponseModel data = new generalInfoCustomerResponseModel();
+                data.Id = dt_InfoCustomer.Rows[0]["ID"].ToInt();
+                data.FirstName = dt_InfoCustomer.Rows[0]["FirstName"].ToString();
+                data.LastName = dt_InfoCustomer.Rows[0]["LastName"].ToString();
+                data.FullName = dt_InfoCustomer.Rows[0]["fullname"].ToString(); ;
+                data.Birthdate = dt_InfoCustomer.Rows[0]["Birthdate"].ToString();
+                data.MeliCode = dt_InfoCustomer.Rows[0]["MeliCode"].ToString();
+                data.Email = dt_InfoCustomer.Rows[0]["Email"].ToString();
+                data.Type = dt_InfoCustomer.Rows[0]["Type"].ToString();
+                data.TypeId = dt_InfoCustomer.Rows[0]["TypeId"].ToInt();
+                data.Mobile = dt_InfoCustomer.Rows[0]["Mobile"].ToString();
+                data.Address = dt_InfoCustomer.Rows[0]["Address"].ToString();
+                data.Status = dt_InfoCustomer.Rows[0]["Status"].ToInt();
+                data.SalesExpert = dt_InfoCustomer.Rows[0]["SalesExpert"].ToInt();
+                data.SalesExpert_FullName = dt_InfoCustomer.Rows[0]["SalesExpert_name"].ToString();
+                response_InfoCustomer = new generalInfoCustomerResponseModelView(data);
+            }
+            else
+            {
+                response_InfoCustomer = new generalInfoCustomerResponseModelView(null);
+            }
+            return JsonConvert.SerializeObject(response_InfoCustomer);
         }
 
         [HttpPost]
@@ -207,12 +245,23 @@ namespace sigma_api.Controllers
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/Items")]
-        public string ItemList(int? maxid)
+        public string ItemList(int page_number = 1)
         {
+            if (page_number < 1)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
+            }
+            int Pages = 1;
+            ListResponse list = new ListResponse();
             List<crmItemListResponseModel> ItemList = new List<crmItemListResponseModel>();
             messagebase m = new messagebase();
             int UserId = HttpContext.Items["UserId"].ToInt();
             DataTable dt_items = new DataTable();
+            SqlParameter[] parameters = new SqlParameter[]
+            {
+                new SqlParameter("item_id",0),
+                new SqlParameter("CustomerId",UserId)
+            };
             dt_items = cp.select("API_ListItems");
             if (cls_public.sqlError.success == false)
             {
@@ -225,14 +274,10 @@ namespace sigma_api.Controllers
             }
             else
             {
-                DataView dv = new DataView(dt_items);
-                if (maxid != null)
-                {
-                    dv.RowFilter = $"ITM_id > {maxid}";
-                    dt_items = new DataTable();
-                    dt_items = dv.ToTable();
-                }
-                dt_items = dt_items.AsEnumerable().Take(10).CopyToDataTable();
+
+                Pages = dt_items.Rows.Count / 10;
+                dt_items = dt_items.AsEnumerable().Skip((page_number - 1) * 50).CopyToDataTable();
+                dt_items = dt_items.AsEnumerable().Take(50).CopyToDataTable();
                 foreach (DataRow row in dt_items.Rows)
                 {
                     ItemList.Add(new crmItemListResponseModel()
@@ -243,7 +288,9 @@ namespace sigma_api.Controllers
                         ITM_id = row["ITM_id"].ToInt(),
                         ITM_Code = row["ITM_Code"].ToString(),
                         Sepidar_ItemId = row["Sepidar_ItemId"].ToInt(),
+                        FullName = row["FullName"].ToString(),
                         Brand = row["Brand"].ToString(),
+                        DistinctCustomersBrand = row["DistinctCustomersBrand"].ToDouble(),
                         UnitId = row["UnitId"].ToInt(),
                         Unit = row["Unit"].ToString(),
                         UnitId2 = row["UnitId"].ToInt(),
@@ -261,8 +308,15 @@ namespace sigma_api.Controllers
                     });
                 }
 
+                list = new ListResponse()
+                {
+                    Pages = Pages,
+                    Page_row = page_number,
+                    results = ItemList
+                };
+
             }
-            response_items = new crmItemListResponseModelView(ItemList.Count <= 0 ? null : ItemList);
+            response_items = new crmItemListResponseModelView(ItemList.Count <= 0 ? null : list);
             return JsonConvert.SerializeObject(response_items);
         }
 
@@ -280,7 +334,8 @@ namespace sigma_api.Controllers
             int UserId = HttpContext.Items["UserId"].ToInt();
             SqlParameter[] parameters = new SqlParameter[]
             {
-                    new SqlParameter("item_id",ItemId)
+                    new SqlParameter("item_id",ItemId),
+                    new SqlParameter("CustomerId",UserId)
             };
             DataTable dt_items = new DataTable();
             dt_items = cp.select_row("API_ListItems", parameters);
@@ -303,7 +358,9 @@ namespace sigma_api.Controllers
                     ITM_id = dt_items.Rows[0]["ITM_id"].ToInt(),
                     ITM_Code = dt_items.Rows[0]["ITM_Code"].ToString(),
                     Sepidar_ItemId = dt_items.Rows[0]["Sepidar_ItemId"].ToInt(),
+                    FullName = dt_items.Rows[0]["FullName"].ToString(),
                     Brand = dt_items.Rows[0]["Brand"].ToString(),
+                    DistinctCustomersBrand = dt_items.Rows[0]["DistinctCustomersBrand"].ToDouble(),
                     UnitId = dt_items.Rows[0]["UnitId"].ToInt(),
                     Unit = dt_items.Rows[0]["Unit"].ToString(),
                     UnitId2 = dt_items.Rows[0]["UnitId"].ToInt(),
@@ -327,8 +384,14 @@ namespace sigma_api.Controllers
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/Quotations")]
-        public string GetQuotations()
+        public string GetQuotations(int page_number = 1)
         {
+            if (page_number < 1)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
+            }
+            int Pages = 1;
+            ListResponse list = new ListResponse();
             List<crmQuotationsResponseModel> Quotations = new List<crmQuotationsResponseModel>();
             messagebase m = new messagebase();
             int UserId = HttpContext.Items["UserId"].ToInt();
@@ -348,6 +411,9 @@ namespace sigma_api.Controllers
             }
             else
             {
+                Pages = dt_Quotations.Rows.Count / 10;
+                dt_Quotations = dt_Quotations.AsEnumerable().Skip((page_number - 1) * 10).CopyToDataTable();
+                dt_Quotations = dt_Quotations.AsEnumerable().Take(10).CopyToDataTable();
                 foreach (DataRow row in dt_Quotations.Rows)
                 {
                     Quotations.Add(new crmQuotationsResponseModel()
@@ -374,10 +440,16 @@ namespace sigma_api.Controllers
                         Tell = row["tel_tell"].ToString(),
                         Details = Array.Empty<crmQuotationsResponseModel.Detail>() // فعلاً خالی
                     });
-
                 }
-                response_quotations = new crmQuotationsResponseModelView(Quotations.Count <= 0 ? null : Quotations);
+                list = new ListResponse()
+                {
+                    Pages = Pages,
+                    Page_row = page_number,
+                    results = Quotations
+                };
+
             }
+            response_quotations = new crmQuotationsResponseModelView(Quotations.Count <= 0 ? null : list);
             return JsonConvert.SerializeObject(response_quotations);
         }
 
@@ -416,6 +488,44 @@ namespace sigma_api.Controllers
                 dv.RowFilter = $"QU_id = {QuotationId}";
                 dt_Quotations = dv.ToTable();
                 if (dt_Quotations.Rows.Count > 0)
+                {
+                    DataTable dt_QuItems = cp.select_row("API_QuotationItems",
+                        new SqlParameter[] { new SqlParameter("QuotationId", QuotationId) });
+                    List<crmQuotationsResponseModel.Detail> details = new List<crmQuotationsResponseModel.Detail>();
+                    foreach (DataRow row in dt_QuItems.Rows)
+                    {
+                        details.Add(new crmQuotationsResponseModel.Detail
+                        {
+                            id = row["QUI_id"].ToInt(),
+                            Code = row["Code"].ToString(),
+                            StockTitle = row["stocktitle"].ToString(),
+                            Title = row["Title"].ToString(),
+                            SupplierId = row["ITM_Supplier"].ToString(),
+                            SupplierName = row["Supplier"].ToString(),
+                            Unit1 = row["vahed"].ToString(),
+                            value = row["QUI_value"].ToDouble(),
+                            valueSecondary = row["QUI_valueSecondary"].ToDouble(),
+                            fee = row["QUI_fee"].ToDouble(),
+                            Price = row["QUI_Price"].ToDouble(),
+                            Discount = row["QUI_Discount"].ToDouble(),
+                            DistinctPercent = row["DistinctPercent"].ToDouble(),
+                            Tax = row["tax"].ToDouble(),
+                            Duty = row["duty"].ToDouble(),
+                            Addition = row["addition"].ToDouble(),
+                            NetPrice = row["QUI_NetPrice"].ToDouble(),
+                            Unit2 = row["unit2"].ToString(),
+                            Nesabt = row["nesabt"].ToString(),
+                            NesbatValue = row["nesbatValue"].ToDouble(),
+                            Item_tax = row["ITM_tax"].ToDouble(),
+                            Item_duty = row["ITM_duty"].ToDouble(),
+                            Item_id = row["QUI_it_id"].ToInt(),
+                            StockId = row["QUI_stock"].ToString(),
+                            DistinctCustomersBrand = row["DistinctCustomersBrand"].ToString(),
+                            ItemStock_Id = row["IS_id"].ToString(),
+                            ItemBrand = row["itembrand"].ToString()
+                        });
+                    }
+
                     Quotations = new crmQuotationsResponseModel()
                     {
                         QU_id = dt_Quotations.Rows[0]["QU_id"].ToInt(),
@@ -438,8 +548,9 @@ namespace sigma_api.Controllers
                         SalesExpertId = dt_Quotations.Rows[0]["QU_SalesExpert"].ToInt(),
                         CustomerId = dt_Quotations.Rows[0]["QU_cst_id"].ToInt(),
                         Tell = dt_Quotations.Rows[0]["tel_tell"].ToString(),
-                        Details = Array.Empty<crmQuotationsResponseModel.Detail>() // فعلاً خالی
+                        Details = details.ToArray() // فعلاً خالی
                     };
+                }
 
             }
             response_quotations = new crmQuotationsResponseModelView(Quotations);

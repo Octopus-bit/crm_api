@@ -10,7 +10,7 @@ namespace sigma_api.ModelView
     public class crmItemListResponseModelView : messagebase
     {
         public object results { get; set; }
-        public crmItemListResponseModelView(List<crmItemListResponseModel> response)
+        public crmItemListResponseModelView(ListResponse response)
         {
             success = true;
             code = ErrorCode.Send.GetHashCode();

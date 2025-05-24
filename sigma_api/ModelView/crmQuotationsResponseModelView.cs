@@ -11,7 +11,7 @@ namespace sigma_api.ModelView
     {
         public object results { get; set; }
 
-        public crmQuotationsResponseModelView(List<crmQuotationsResponseModel> response)
+        public crmQuotationsResponseModelView(ListResponse response)
         {
             success = true;
             code = ErrorCode.Send.GetHashCode();

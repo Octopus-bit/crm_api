@@ -15,6 +15,7 @@ namespace sigma_api.Models
         public int Sepidar_ItemId { get; set; }
         public string FullName { get; set; }
         public string Brand { get; set; }
+        public double DistinctCustomersBrand { get; set; } // درصد تخفیف مشتری روی برند
         public int UnitId { get; set; }
         public string Unit { get; set; }
         public int UnitId2 { get; set; }

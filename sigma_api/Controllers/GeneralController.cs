@@ -49,19 +49,24 @@ namespace sigma_api.Controllers
             {
                 new SqlParameter("Mobile", mobile),
             };
-            DataTable dt_InfoCustomer = cp.select_row("API_CustomerInfo", parameters2);
+            DataTable dt_InfoCustomer = cp.select_row("API_GetCustomerInfoByMobile", parameters2);
             if (dt_InfoCustomer.Rows.Count > 0)
             {
                 generalInfoCustomerResponseModel data = new generalInfoCustomerResponseModel();
                 data.Id = dt_InfoCustomer.Rows[0]["ID"].ToInt();
-                data.FirstName = dt_InfoCustomer.Rows[0]["FirstName"].ToString(); 
-                data.LastName = dt_InfoCustomer.Rows[0]["LastName"].ToString(); 
+                data.FirstName = dt_InfoCustomer.Rows[0]["FirstName"].ToString();
+                data.LastName = dt_InfoCustomer.Rows[0]["LastName"].ToString();
                 data.FullName = dt_InfoCustomer.Rows[0]["fullname"].ToString(); ;
-                data.Birthdate = dt_InfoCustomer.Rows[0]["Birthdate"].ToString(); 
-                data.MeliCode = dt_InfoCustomer.Rows[0]["MeliCode"].ToString(); 
-                data.Email = dt_InfoCustomer.Rows[0]["Email"].ToString(); 
-                data.Type = dt_InfoCustomer.Rows[0]["Type"].ToString(); 
+                data.Birthdate = dt_InfoCustomer.Rows[0]["Birthdate"].ToString();
+                data.MeliCode = dt_InfoCustomer.Rows[0]["MeliCode"].ToString();
+                data.Email = dt_InfoCustomer.Rows[0]["Email"].ToString();
+                data.Type = dt_InfoCustomer.Rows[0]["Type"].ToString();
+                data.TypeId = dt_InfoCustomer.Rows[0]["TypeId"].ToInt();
+                data.Mobile = dt_InfoCustomer.Rows[0]["Mobile"].ToString();
+                data.Address = dt_InfoCustomer.Rows[0]["Address"].ToString();
                 data.Status = dt_InfoCustomer.Rows[0]["Status"].ToInt();
+                data.SalesExpert = dt_InfoCustomer.Rows[0]["SalesExpert"].ToInt();
+                data.SalesExpert_FullName = dt_InfoCustomer.Rows[0]["SalesExpert_name"].ToString();
                 response_InfoCustomer = new generalInfoCustomerResponseModelView(data);
             }
             else
@@ -71,6 +76,23 @@ namespace sigma_api.Controllers
             return JsonConvert.SerializeObject(response_InfoCustomer);
         }
 
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/System-settings")]
+        public string System()
+        {
+            string token = coding.SigmaEncryptString(HttpContext.Items["token"].ToString());
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            if (cp.command($"UPDATE dbo.API_Tokens SET tk_AtCreate = GETDATE()-1 WHERE tk_Token = '{token}' and tk_UserIdRef = {UserId}"))
+            {
+                return messagebase.messages(true, ErrorCode.Send.GetHashCode(), "Token successfully revoked.");
+            }
+            else
+            {
+                return messagebase.messages(false, ErrorCode.Created.GetHashCode(), "Token was not successfully revoked.");
+            }
+        }
+        
         [Authorize]
         [HttpDelete]
         [Route("api/[controller]/logout")]
