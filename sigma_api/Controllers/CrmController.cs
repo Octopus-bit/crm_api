@@ -557,5 +557,95 @@ namespace sigma_api.Controllers
 
             return JsonConvert.SerializeObject(response_quotations);
         }
+
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/bill")]
+        public string GetBill(int page_number = 1)
+        {
+            if (page_number < 1)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
+            }
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            int Pages = 1;
+            ListResponse list = new ListResponse();
+            string DataMali = clsProperties.GetPropertise("DataMali").ToString();
+            DateTime DTNOW = cp.GetDateTime().Date;
+            DateTime DTNOW2 = DTNOW;
+            DataTable customerkoli2;
+
+            string DTNOWStr = ShamsiDate.MiladiToShamsi(DTNOW);
+            DTNOWStr = DTNOWStr.Substring(0, 4) + "/01/01";
+            DTNOW = ShamsiDate.Shamsi2Miladi(DTNOWStr);
+            string DTNOWStr2 = ShamsiDate.MiladiToShamsi(DTNOW2.Date);
+            try
+            {
+                string DTNOWStr3 = DTNOWStr2.Substring(0, 4) + "/12/30";
+                DTNOW2 = ShamsiDate.Shamsi2Miladi(DTNOWStr3);
+            }
+            catch
+            {
+                string DTNOWStr3 = DTNOWStr2.Substring(0, 4) + "/12/29";
+                DTNOW2 = ShamsiDate.Shamsi2Miladi(DTNOWStr3);
+            }
+            SqlDataAdapter _DA;
+            DataSet _DS = new DataSet();
+            _DA = new SqlDataAdapter();
+            string text = @"SELECT DLRef, DLCode, DLTitle,  SumDebit, SumCredit,DLType,
+    CASE WHEN Balance > 0 THEN Balance ELSE 0 END DebitBalance,
+    CASE WHEN Balance < 0 THEN ABS(Balance)	ELSE 0 END CreditBalance
+FROM
+    (
+    SELECT DLRef, DLCode, DLTitle, DLTitle_En,DLType,
+        ISNULL(SUM(VI.Debit), 0) SumDebit, ISNULL(SUM(VI.Credit), 0) SumCredit,
+        ISNULL(SUM(VI.Debit), 0) - ISNULL(SUM(VI.Credit), 0) Balance,
+        IsCustomer, IsVendor
+    FROM " + DataMali + @".ACC.vwVoucherItem VI
+    WHERE 
+			(VI.DLRef IS NOT NULL)
+        AND (VI.VoucherDate            >=  @FromDate      OR -1 = @FromDate)
+        AND (VI.VoucherDate            <=  @ToDate        OR -1 = @ToDate)
+        AND ((VI.VoucherType IN (1, 2, 6)) --General, OtherSystems, CurrencyConversion
+            OR  (VoucherType =  N'5'       AND VoucherDate <= @LastDayOfFirstYear)
+            OR  (VoucherType =  -1       AND VoucherDate >= @FirstDayOfLastYear)
+            OR  (VoucherType =  -1)
+            )
+    GROUP BY DLRef, DLCode, DLTitle, DLTitle_En,DLType, IsCustomer, IsVendor   
+--having DLRef=(SELECT csT_dl FROM dbo.PRG_Customers WHERE cst_id = " + UserId + @")
+having DLRef=5967
+) AS Moror";
+            SqlParameter[] parameters = new SqlParameter[]
+            {
+                new SqlParameter("@FromDate",ShamsiDate.Shamsi2Miladi("1403/01/01")/*DTNOW*/ ),
+                new SqlParameter("@ToDate", ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/),
+                new SqlParameter("@LastDayOfFirstYear",ShamsiDate.Shamsi2Miladi( "1403/01/01")/*DTNOW*/),
+                new SqlParameter("@FirstDayOfLastYear",ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/ ),
+            };
+            DataTable dtmoror = cp.select_command(text, parameters);
+
+
+            text = @"SELECT   [RowNumber] ,[VoucherDate] ,[Description] ,[Debit] ,[Credit]
+FROM " + DataMali + @".ACC.[vwVoucherItem] vi
+LEFT JOIN (SELECT    g.VoucherRef   ,g1.Number   ,g1.FromVoucherNumber   ,g1.ToVoucherNumber
+  FROM " + DataMali + @".ACC.vwGLVoucher g1
+  INNER JOIN " + DataMali + @".ACC.vwGLVoucherItem g
+    ON g1.GLVoucherId = g.GLVoucherRef) GLVoucher
+  ON GLVoucher.VoucherRef = vi.VoucherRef
+WHERE 
+ (VoucherDate >= @FromDate )
+AND (VoucherDate <= @ToDate)
+AND ((VoucherType IN (1, 2, 6)) OR (VoucherType = N'5' AND VoucherDate <= @LastDayOfFirstYear) OR (VoucherType = N'-1' AND VoucherDate >= @FirstDayOfLastYear) OR (VoucherType = N'-1'))
+AND DLRef=5967";
+            SqlParameter[] parameters2 = new SqlParameter[]
+            {
+                new SqlParameter("@FromDate",ShamsiDate.Shamsi2Miladi("1403/01/01")/*DTNOW*/ ),
+                new SqlParameter("@ToDate", ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/),
+                new SqlParameter("@LastDayOfFirstYear",ShamsiDate.Shamsi2Miladi( "1403/01/01")/*DTNOW*/),
+                new SqlParameter("@FirstDayOfLastYear",ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/ ),
+            };
+            DataTable dt_ditales = cp.select_command(text, parameters2);
+            return JsonConvert.SerializeObject(list);
+        }
     }
 }

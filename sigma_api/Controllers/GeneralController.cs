@@ -21,6 +21,7 @@ namespace sigma_api.Controllers
     {
         private cls_public cp = new cls_public();
         private generalInfoCustomerResponseModelView response_InfoCustomer;
+        private generalSystemSettingsResponseModelView response_SystemSettings;
 
         [Authorize]
         [HttpGet]
@@ -81,18 +82,28 @@ namespace sigma_api.Controllers
         [Route("api/[controller]/System-settings")]
         public string System()
         {
-            string token = coding.SigmaEncryptString(HttpContext.Items["token"].ToString());
-            int UserId = HttpContext.Items["UserId"].ToInt();
-            if (cp.command($"UPDATE dbo.API_Tokens SET tk_AtCreate = GETDATE()-1 WHERE tk_Token = '{token}' and tk_UserIdRef = {UserId}"))
+            try
             {
-                return messagebase.messages(true, ErrorCode.Send.GetHashCode(), "Token successfully revoked.");
+
+                generalSystemSettingsResponseModel system = new generalSystemSettingsResponseModel()
+                {
+                    Company = clsProperties.GetPropertise("txtnameforoshgah").ToString(),
+                    Logo = clsProperties.GetPropertise("logo").ToString(),
+                    Column_Unit2 = clsProperties.GetPropertise("SubunitQuotation").ToBoolean(),
+                    ExpirationQuotations = clsProperties.GetPropertise("expireddayQuotation").ToInt(),
+                };
+                response_SystemSettings = new generalSystemSettingsResponseModelView(system);
+
             }
-            else
+            catch (Exception e)
             {
-                return messagebase.messages(false, ErrorCode.Created.GetHashCode(), "Token was not successfully revoked.");
+                response_SystemSettings =
+                    new generalSystemSettingsResponseModelView(ErrorCode.Conflict.GetHashCode(), e.Message);
             }
+
+            return JsonConvert.SerializeObject(response_SystemSettings);
         }
-        
+
         [Authorize]
         [HttpDelete]
         [Route("api/[controller]/logout")]

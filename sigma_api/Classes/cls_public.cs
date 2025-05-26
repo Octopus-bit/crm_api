@@ -148,12 +148,17 @@ namespace sigma_api.Classes
             }
         }
 
-        public DataTable select_command(string Select_command, SqlTransaction transaction = null)
+        public DataTable select_command(string Select_command, SqlParameter[] parameters = null, SqlTransaction transaction = null)
         {
             DataTable dt = new DataTable();
             _command = new SqlCommand(Select_command, _con);
             _command.Transaction = transaction;
             _command.Parameters.Clear();
+            if (parameters != null)
+                foreach (SqlParameter parameter in parameters)
+                {
+                    _command.Parameters.Add(parameter);
+                }
             _dataAdapter = new SqlDataAdapter(_command);
             try
             {

@@ -154,7 +154,7 @@ namespace sigma_api.Controllers
             {
                     new SqlParameter("Mobile", mobile),
             };
-            DataTable dt_InfoCustomer = cp.select_row("API_CustomerInfo", parameters2);
+            DataTable dt_InfoCustomer = cp.select_row("API_GetCustomerInfoByMobile", parameters2);
             if (dt_InfoCustomer.Rows.Count > 0)
             {
                 CustomerFullName = dt_InfoCustomer.Rows[0]["fullname"].ToString();
@@ -285,7 +285,7 @@ namespace sigma_api.Controllers
                     {
                     new SqlParameter("Mobile", item.mobile),
                 };
-                    DataTable dt_InfoCustomer = cp.select_row("API_CustomerInfo", parameters2, transaction);
+                    DataTable dt_InfoCustomer = cp.select_row("API_GetCustomerInfoByMobile", parameters2, transaction);
                     if (dt_InfoCustomer.Rows.Count > 0)
                     {
                         CustomerFullName = dt_InfoCustomer.Rows[0]["fullname"].ToString();
