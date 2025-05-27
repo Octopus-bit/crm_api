@@ -9,6 +9,6 @@ namespace sigma_api.Models
     {
         public int Pages { get; set; }
         public int Page_row { get; set; }
-        public object results { get; set; }
+        public object List { get; set; }
     }
 }

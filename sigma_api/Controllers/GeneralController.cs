@@ -25,7 +25,7 @@ namespace sigma_api.Controllers
 
         [Authorize]
         [HttpGet]
-        [Route("api/[controller]/get-info-customer/{mobile}")]
+        [Route("api/[controller]/get-info-customer/{mobile?}")]
         public string getInfoCustomer([Required] string mobile)
         {
             messagebase mes = new messagebase();
@@ -36,15 +36,29 @@ namespace sigma_api.Controllers
                 mes.message = "not found mobile";
                 return JsonConvert.SerializeObject(mes);
             }
-            if (mobile.StartsWith("98"))
+            if(mobile.StartsWith("98") || mobile.StartsWith("+98") || mobile.StartsWith("09"))
             {
-                mobile = "+" + mobile;
-                mobile = mobile.Replace("+98", "0");
-            }
+                if (mobile.StartsWith("98"))
+                {
+                    mobile = "+" + mobile;
+                    mobile = mobile.Replace("+98", "0");
+                }
 
-            if (mobile.StartsWith("+98"))
+                if (mobile.StartsWith("+98"))
+                {
+                    mobile = mobile.Replace("+98", "0");
+                }
+            }
+            else
             {
-                mobile = mobile.Replace("+98", "0");
+                foreach (string code in new clsProperties().provincePhoneCodes)
+                {
+                    if (mobile.StartsWith(code))
+                    {
+                        mobile.Replace(code, "");
+                        break;
+                    }
+                }
             }
             SqlParameter[] parameters2 =
             {
@@ -89,6 +103,7 @@ namespace sigma_api.Controllers
                 {
                     Company = clsProperties.GetPropertise("txtnameforoshgah").ToString(),
                     Logo = clsProperties.GetPropertise("logo").ToString(),
+                    Version = typeof(Program).Assembly.GetName().Version?.ToString(),
                     Column_Unit2 = clsProperties.GetPropertise("SubunitQuotation").ToBoolean(),
                     ExpirationQuotations = clsProperties.GetPropertise("expireddayQuotation").ToInt(),
                 };

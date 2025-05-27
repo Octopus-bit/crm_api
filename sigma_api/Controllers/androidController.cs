@@ -134,21 +134,37 @@ namespace sigma_api.Controllers
                 };
                 return JsonConvert.SerializeObject(m);
             }
-            if (mobile.StartsWith("98"))
-            {
-                mobile = "+" + mobile;
-                mobile = mobile.Replace("+98", "0");
-            }
 
-            if (mobile.StartsWith("+98"))
+            if (mobile.StartsWith("98") || mobile.StartsWith("+98") || mobile.StartsWith("09"))
             {
-                mobile = mobile.Replace("+98", "0");
+                if (mobile.StartsWith("98"))
+                {
+                    mobile = "+" + mobile;
+                    mobile = mobile.Replace("+98", "0");
+                }
+
+                if (mobile.StartsWith("+98"))
+                {
+                    mobile = mobile.Replace("+98", "0");
+                }
+            }
+            else
+            {
+                foreach (string code in new clsProperties().provincePhoneCodes)
+                {
+                    if (mobile.StartsWith(code))
+                    {
+                        mobile.Replace(code, "");
+                        break;
+                    }
+                }
             }
 
             SqlParameter[] parameters =
             {
                     new SqlParameter("USR_id", UserId),
             };
+            
             DataTable dt = cp.select_row("SPandroid_GetAccessUser", parameters);
             SqlParameter[] parameters2 =
             {
@@ -270,15 +286,29 @@ namespace sigma_api.Controllers
                         break;
                     }
 
-                    if (item.mobile.StartsWith("98"))
+                    if(item.mobile.StartsWith("98") || item.mobile.StartsWith("+98") || item.mobile.StartsWith("09"))
                     {
-                        item.mobile = "+" + item.mobile;
-                        item.mobile = item.mobile.Replace("+98", "0");
-                    }
+                        if (item.mobile.StartsWith("98"))
+                        {
+                            item.mobile = "+" + item.mobile;
+                            item.mobile = item.mobile.Replace("+98", "0");
+                        }
 
-                    if (item.mobile.StartsWith("+98"))
+                        if (item.mobile.StartsWith("+98"))
+                        {
+                            item.mobile = item.mobile.Replace("+98", "0");
+                        }
+                    }
+                    else
                     {
-                        item.mobile = item.mobile.Replace("+98", "0");
+                        foreach (string code in new clsProperties().provincePhoneCodes)
+                        {
+                            if (item.mobile.StartsWith(code))
+                            {
+                                item.mobile.Replace(code, "");
+                                break;
+                            }
+                        }
                     }
 
                     SqlParameter[] parameters2 =

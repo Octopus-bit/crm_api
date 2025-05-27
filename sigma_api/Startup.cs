@@ -38,7 +38,7 @@ namespace sigma_api
             // Swagger Configuration
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "sigma_api", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "sigma_api", Version = "v"+ typeof(Program).Assembly.GetName().Version?.ToString() });
 
                 // تعریف توکن سفارشی به عنوان یک هدر خاص
                 var guidTokenScheme = new OpenApiSecurityScheme

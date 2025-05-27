@@ -9,6 +9,7 @@ namespace sigma_api.Models
     {
         public string Company { get; set; }
         public string Logo { get; set; }
+        public string Version { get; set; }
         public int ExpirationQuotations { get; set; }
         public bool Column_Unit2 { get; set; }
     }

@@ -23,6 +23,7 @@ namespace sigma_api.Controllers
         crmItemListResponseModelView response_items;
         crmQuotationsResponseModelView response_quotations;
         generalInfoCustomerResponseModelView response_InfoCustomer;
+        crmBillResponseModelView response_bill;
 
         [HttpPost]
         [Route("api/[controller]/login")]
@@ -275,9 +276,14 @@ namespace sigma_api.Controllers
             else
             {
 
-                Pages = dt_items.Rows.Count / 10;
-                dt_items = dt_items.AsEnumerable().Skip((page_number - 1) * 50).CopyToDataTable();
-                dt_items = dt_items.AsEnumerable().Take(50).CopyToDataTable();
+                Pages = dt_items.Rows.Count / 50;
+                if (Pages < 1)
+                    Pages = 1;
+                if (dt_items.Rows.Count > 50)
+                {
+                    dt_items = dt_items.AsEnumerable().Skip((page_number - 1) * 50).CopyToDataTable();
+                    dt_items = dt_items.AsEnumerable().Take(50).CopyToDataTable();
+                }
                 foreach (DataRow row in dt_items.Rows)
                 {
                     ItemList.Add(new crmItemListResponseModel()
@@ -312,7 +318,7 @@ namespace sigma_api.Controllers
                 {
                     Pages = Pages,
                     Page_row = page_number,
-                    results = ItemList
+                    List = ItemList
                 };
 
             }
@@ -412,8 +418,13 @@ namespace sigma_api.Controllers
             else
             {
                 Pages = dt_Quotations.Rows.Count / 10;
-                dt_Quotations = dt_Quotations.AsEnumerable().Skip((page_number - 1) * 10).CopyToDataTable();
-                dt_Quotations = dt_Quotations.AsEnumerable().Take(10).CopyToDataTable();
+                if (Pages < 1)
+                    Pages = 1;
+                if (dt_Quotations.Rows.Count > 10)
+                {
+                    dt_Quotations = dt_Quotations.AsEnumerable().Skip((page_number - 1) * 10).CopyToDataTable();
+                    dt_Quotations = dt_Quotations.AsEnumerable().Take(10).CopyToDataTable();
+                }
                 foreach (DataRow row in dt_Quotations.Rows)
                 {
                     Quotations.Add(new crmQuotationsResponseModel()
@@ -445,7 +456,7 @@ namespace sigma_api.Controllers
                 {
                     Pages = Pages,
                     Page_row = page_number,
-                    results = Quotations
+                    List = Quotations
                 };
 
             }
@@ -500,28 +511,28 @@ namespace sigma_api.Controllers
                             Code = row["Code"].ToString(),
                             StockTitle = row["stocktitle"].ToString(),
                             Title = row["Title"].ToString(),
-                            SupplierId = row["ITM_Supplier"].ToString(),
+                            SupplierId = row["ITM_Supplier"].ToInt(),
                             SupplierName = row["Supplier"].ToString(),
                             Unit1 = row["vahed"].ToString(),
                             value = row["QUI_value"].ToDouble(),
                             valueSecondary = row["QUI_valueSecondary"].ToDouble(),
-                            fee = row["QUI_fee"].ToDouble(),
-                            Price = row["QUI_Price"].ToDouble(),
-                            Discount = row["QUI_Discount"].ToDouble(),
+                            fee = row["QUI_fee"].ToDecimal(),
+                            Price = row["QUI_Price"].ToDecimal(),
+                            Discount = row["QUI_Discount"].ToDecimal(),
                             DistinctPercent = row["DistinctPercent"].ToDouble(),
-                            Tax = row["tax"].ToDouble(),
-                            Duty = row["duty"].ToDouble(),
-                            Addition = row["addition"].ToDouble(),
-                            NetPrice = row["QUI_NetPrice"].ToDouble(),
+                            Tax = row["tax"].ToInt(),
+                            Duty = row["duty"].ToInt(),
+                            Addition = row["addition"].ToDecimal(),
+                            NetPrice = row["QUI_NetPrice"].ToDecimal(),
                             Unit2 = row["unit2"].ToString(),
-                            Nesabt = row["nesabt"].ToString(),
+                            Nesabt = row["nesabt"].ToBoolean(),
                             NesbatValue = row["nesbatValue"].ToDouble(),
-                            Item_tax = row["ITM_tax"].ToDouble(),
-                            Item_duty = row["ITM_duty"].ToDouble(),
+                            Item_tax = row["ITM_tax"].ToInt(),
+                            Item_duty = row["ITM_duty"].ToInt(),
                             Item_id = row["QUI_it_id"].ToInt(),
-                            StockId = row["QUI_stock"].ToString(),
-                            DistinctCustomersBrand = row["DistinctCustomersBrand"].ToString(),
-                            ItemStock_Id = row["IS_id"].ToString(),
+                            StockId = row["QUI_stock"].ToInt(),
+                            DistinctCustomersBrand = row["DistinctCustomersBrand"].ToDouble(),
+                            ItemStock_Id = row["IS_id"].ToInt(),
                             ItemBrand = row["itembrand"].ToString()
                         });
                     }
@@ -569,30 +580,29 @@ namespace sigma_api.Controllers
             }
             int UserId = HttpContext.Items["UserId"].ToInt();
             int Pages = 1;
-            ListResponse list = new ListResponse();
-            string DataMali = clsProperties.GetPropertise("DataMali").ToString();
-            DateTime DTNOW = cp.GetDateTime().Date;
-            DateTime DTNOW2 = DTNOW;
-            DataTable customerkoli2;
-
-            string DTNOWStr = ShamsiDate.MiladiToShamsi(DTNOW);
-            DTNOWStr = DTNOWStr.Substring(0, 4) + "/01/01";
-            DTNOW = ShamsiDate.Shamsi2Miladi(DTNOWStr);
-            string DTNOWStr2 = ShamsiDate.MiladiToShamsi(DTNOW2.Date);
             try
             {
-                string DTNOWStr3 = DTNOWStr2.Substring(0, 4) + "/12/30";
-                DTNOW2 = ShamsiDate.Shamsi2Miladi(DTNOWStr3);
-            }
-            catch
-            {
-                string DTNOWStr3 = DTNOWStr2.Substring(0, 4) + "/12/29";
-                DTNOW2 = ShamsiDate.Shamsi2Miladi(DTNOWStr3);
-            }
-            SqlDataAdapter _DA;
-            DataSet _DS = new DataSet();
-            _DA = new SqlDataAdapter();
-            string text = @"SELECT DLRef, DLCode, DLTitle,  SumDebit, SumCredit,DLType,
+
+                string DataMali = clsProperties.GetPropertise("DataMali").ToString();
+                DateTime DTNOW = cp.GetDateTime().Date;
+                DateTime DTNOW2 = DTNOW;
+                DataTable customerkoli2;
+
+                string DTNOWStr = ShamsiDate.MiladiToShamsi(DTNOW);
+                DTNOWStr = DTNOWStr.Substring(0, 4) + "/01/01";
+                DTNOW = ShamsiDate.Shamsi2Miladi(DTNOWStr);
+                string DTNOWStr2 = ShamsiDate.MiladiToShamsi(DTNOW2.Date);
+                try
+                {
+                    string DTNOWStr3 = DTNOWStr2.Substring(0, 4) + "/12/30";
+                    DTNOW2 = ShamsiDate.Shamsi2Miladi(DTNOWStr3);
+                }
+                catch
+                {
+                    string DTNOWStr3 = DTNOWStr2.Substring(0, 4) + "/12/29";
+                    DTNOW2 = ShamsiDate.Shamsi2Miladi(DTNOWStr3);
+                }
+                string text = @"SELECT DLRef, DLCode, DLTitle,  SumDebit, SumCredit,DLType,
     CASE WHEN Balance > 0 THEN Balance ELSE 0 END DebitBalance,
     CASE WHEN Balance < 0 THEN ABS(Balance)	ELSE 0 END CreditBalance
 FROM
@@ -615,17 +625,33 @@ FROM
 --having DLRef=(SELECT csT_dl FROM dbo.PRG_Customers WHERE cst_id = " + UserId + @")
 having DLRef=5967
 ) AS Moror";
-            SqlParameter[] parameters = new SqlParameter[]
-            {
+                SqlParameter[] parameters = new SqlParameter[]
+                {
                 new SqlParameter("@FromDate",ShamsiDate.Shamsi2Miladi("1403/01/01")/*DTNOW*/ ),
                 new SqlParameter("@ToDate", ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/),
                 new SqlParameter("@LastDayOfFirstYear",ShamsiDate.Shamsi2Miladi( "1403/01/01")/*DTNOW*/),
                 new SqlParameter("@FirstDayOfLastYear",ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/ ),
-            };
-            DataTable dtmoror = cp.select_command(text, parameters);
+                };
+                DataTable dtmoror = cp.select_command(text, parameters);
 
+                if (dtmoror.Rows.Count > 0)
+                {
 
-            text = @"SELECT   [RowNumber] ,[VoucherDate] ,[Description] ,[Debit] ,[Credit]
+                    crmBillResponseModel header = new crmBillResponseModel()
+                    {
+
+                        Id = dtmoror.Rows[0]["DLRef"].ToInt(),
+                        Code = dtmoror.Rows[0]["DLCode"].ToInt(),
+                        Type = dtmoror.Rows[0]["DLType"].ToInt(),
+                        Title = dtmoror.Rows[0]["DLTitle"].ToString(),
+                        SumDebit = dtmoror.Rows[0]["SumDebit"].ToDecimal(),
+                        SumCredit = dtmoror.Rows[0]["SumCredit"].ToDecimal(),
+                        DebitBalance = dtmoror.Rows[0]["DebitBalance"].ToDecimal(),
+                        CreditBalance = dtmoror.Rows[0]["CreditBalance"].ToDecimal()
+
+                    };
+
+                    text = @"SELECT   [RowNumber] ,[VoucherDate] ,[Description] ,[Debit] ,[Credit]
 FROM " + DataMali + @".ACC.[vwVoucherItem] vi
 LEFT JOIN (SELECT    g.VoucherRef   ,g1.Number   ,g1.FromVoucherNumber   ,g1.ToVoucherNumber
   FROM " + DataMali + @".ACC.vwGLVoucher g1
@@ -637,15 +663,57 @@ WHERE
 AND (VoucherDate <= @ToDate)
 AND ((VoucherType IN (1, 2, 6)) OR (VoucherType = N'5' AND VoucherDate <= @LastDayOfFirstYear) OR (VoucherType = N'-1' AND VoucherDate >= @FirstDayOfLastYear) OR (VoucherType = N'-1'))
 AND DLRef=5967";
-            SqlParameter[] parameters2 = new SqlParameter[]
-            {
+                    SqlParameter[] parameters2 = new SqlParameter[]
+                    {
                 new SqlParameter("@FromDate",ShamsiDate.Shamsi2Miladi("1403/01/01")/*DTNOW*/ ),
                 new SqlParameter("@ToDate", ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/),
                 new SqlParameter("@LastDayOfFirstYear",ShamsiDate.Shamsi2Miladi( "1403/01/01")/*DTNOW*/),
                 new SqlParameter("@FirstDayOfLastYear",ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/ ),
-            };
-            DataTable dt_ditales = cp.select_command(text, parameters2);
-            return JsonConvert.SerializeObject(list);
+                    };
+                    DataTable dt_ditales = cp.select_command(text, parameters2);
+                    Pages = dt_ditales.Rows.Count / 15;
+                    if (Pages < 1)
+                        Pages = 1;
+                    if (dt_ditales.Rows.Count > 15)
+                    {
+                        dt_ditales = dt_ditales.AsEnumerable().Skip((page_number - 1) * 15).CopyToDataTable();
+                        dt_ditales = dt_ditales.AsEnumerable().Take(15).CopyToDataTable();
+                    }
+                    List<crmBillResponseModel.turnover> turnover = new List<crmBillResponseModel.turnover>();
+                    foreach (DataRow row in dt_ditales.Rows)
+                    {
+                        turnover.Add(new crmBillResponseModel.turnover()
+                        {
+                            Row = row["RowNumber"].ToInt(),
+                            Date = row["VoucherDate"].ToString(),
+                            Description = row["Description"].ToString(),
+                            Debit = row["Debit"].ToDecimal(),
+                            Credit = row["Credit"].ToDecimal(),
+                            Remaining = row["Debit"].ToDecimal() - row["Credit"].ToDecimal()
+                        });
+                    }
+
+                    header.Turnovers = new ListResponse()
+                    {
+                        Pages = Pages,
+                        Page_row = page_number,
+                        List = turnover
+                    };
+                    response_bill = new crmBillResponseModelView(header);
+                }
+                else
+                {
+                    response_bill = null;
+                }
+            }
+            catch (Exception e)
+            {
+                if (cls_public.sqlError.success == false)
+                    response_bill = new crmBillResponseModelView(ErrorCode.DBO_Unavailable.GetHashCode(), cls_public.sqlError.message);
+                else
+                    response_bill = new crmBillResponseModelView(ErrorCode.DBO_Error.GetHashCode(), e.Message);
+            }
+            return JsonConvert.SerializeObject(response_bill);
         }
     }
 }

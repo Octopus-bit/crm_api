@@ -37,7 +37,7 @@ namespace sigma_api.Security
                 retry++;
             }
 
-            return token;
+            return coding.SigmaEncryptString(token);
         }
 
         public static DataTable ReadToken(string token)
@@ -53,7 +53,7 @@ namespace sigma_api.Security
 
                 SqlParameter[] parameters =
                 {
-                    new SqlParameter("token",coding.SigmaEncryptString(token)),
+                    new SqlParameter("token",token),
                 };
                 return cp.select_row("API_GetUserByToken", parameters);
             }
