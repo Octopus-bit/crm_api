@@ -44,10 +44,10 @@ namespace sigma_api.Security
             return Encoding.UTF8.GetString(decodeText);
         }
 
-        //public static string SafeFarsiStr(string input)
-        //{
-        //    return input.Replace("ي", "ی").Replace("ك", "ک");
-        //}
+        public static string SafeFarsiStr(string input)
+        {
+            return input.Replace("ي", "ی").Replace("ك", "ک");
+        }
 
         public static string SigmaEncryptString(string strToEncrypt)
         {

@@ -388,6 +388,152 @@ namespace sigma_api.Controllers
         }
 
         [Authorize]
+        [HttpPost]
+        [Route("api/[controller]/Quotations")]
+        public string AddQuotations([FromBody] crmQuotationsRequestModelView request)
+        {
+            messagebase m = new messagebase();
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            try
+            {
+                if (request.Date == default(DateTime))
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "تاریخ را وارد نمایید");
+                }
+
+
+                else if (string.IsNullOrWhiteSpace(request.Address))
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "جزئیات آدرس محل تحویل را وارد نمایید");
+                }
+                else if (request.Location <= 0)
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شهر محل تحویل را مشخص نمایید");
+                }
+                else if (request.SalesExpert <= 0)
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "نماینده فروش را مشخص نمایید");
+                }
+                else if (request.TypeSale <= 0)
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "نوع فروش را مشخص نمایید");
+                }
+                else if (request.Items == null)
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "ارسال مشخصات اقلام الزامی میباشد");
+                }
+            }
+            catch
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "داده های ارسال شده ناقص میباشد");
+            }
+            DateTime Date = request.Date;
+            DateTime expire_date = Date.AddDays(clsProperties.GetPropertise("expireddayQuotation").ToInt());
+            int TypeSale = request.TypeSale;
+            string Description = request.Description;
+            int Location = request.Location;
+            string Address = request.Address;
+            int SalesExpert = request.SalesExpert;
+            DataTable header = new DataTable();
+            header.Columns.Add("CustomerId", typeof(int));
+            header.Columns.Add("SalesExpert", typeof(int));
+            header.Columns.Add("Date", typeof(DateTime));
+            header.Columns.Add("expire_date", typeof(DateTime));
+            header.Columns.Add("TypeSale", typeof(int));
+            header.Columns.Add("Description", typeof(string));
+            header.Columns.Add("Location", typeof(int));
+            header.Columns.Add("Address", typeof(string));
+            header.Rows.Add(UserId, SalesExpert, Date, expire_date, TypeSale, Description, Location, Address);
+            DataTable listitem = new DataTable();
+            listitem.Columns.Add("is_id", typeof(int));
+            listitem.Columns.Add("stock_id", typeof(int));
+            listitem.Columns.Add("itm_id", typeof(int));
+            listitem.Columns.Add("unit1_id", typeof(int));
+            listitem.Columns.Add("unit2_id", typeof(int));
+            listitem.Columns.Add("value", typeof(double));
+            listitem.Columns.Add("valueSecendry", typeof(double));
+            listitem.Columns.Add("fee", typeof(decimal));
+            listitem.Columns.Add("price", typeof(decimal));
+            listitem.Columns.Add("netPrice", typeof(decimal));
+            listitem.Columns.Add("tax", typeof(int));
+            listitem.Columns.Add("duty", typeof(int));
+            listitem.Columns.Add("discountCustomer", typeof(double));
+            listitem.Columns.Add("nesbat", typeof(bool));
+            listitem.Columns.Add("nesbatValue", typeof(float));
+            bool itemError = true;
+            foreach (crmQuotationsRequestModelView.Item items in request.Items)
+            {
+                if (items.IS_id <= 0)
+                {
+                    itemError = false;
+                    break;
+                }
+                else if (items.value <= 0)
+                {
+                    itemError = false;
+                    break;
+                }
+                else if (items.valueSecondary < 0)
+                {
+                    itemError = false;
+                    break;
+                }
+                else if (items.fi <= 0)
+                {
+                    itemError = false;
+                    break;
+                }
+                else if (items.Price <= 0)
+                {
+                    itemError = false;
+                    break;
+                }
+                else if (items.NetPrice <= 0)
+                {
+                    itemError = false;
+                    break;
+                }
+                DataTable item_info = cp.select_row("API_GetIteminfoByItemStock",
+                    new SqlParameter[] { new SqlParameter("is_id", items.IS_id), new SqlParameter("user_id", UserId) });
+                DataRow dr = item_info.Rows[0];
+                listitem.Rows.Add(items.IS_id, dr["stock_id"], dr["itm_id"], dr["unit1_id"], dr["unit2_id"], items.value, items.valueSecondary, items.fi, items.Price, items.NetPrice, dr["tax"], dr["dury"], dr["discountCustomer"], dr["nesbat"], dr["nesbatValue"]);
+            }
+
+            if (itemError == false)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "داده های ارسال شده در اقلام کالا ناقص میباشد");
+            }
+            DataRow dr_header = header.Rows[0];
+            clsQuotations qu = new clsQuotations();
+            if (qu.Etebar(dr_header, listitem))
+            {
+                if (qu.inventory(dr_header, listitem))
+                {
+                    int scaler = qu.Acsept(dr_header, listitem);
+                    if (scaler >= 1)
+                    {
+                        response_quotations = new crmQuotationsResponseModelView(scaler);
+                        return JsonConvert.SerializeObject(response_quotations);
+                    }
+                    else
+                    {
+                        return messagebase.messages(false, ErrorCode.Conflict.GetHashCode(), qu.MessageError);
+                    }
+                }
+                else
+                {
+                    return messagebase.messages(false, ErrorCode.Conflict.GetHashCode(), "موجودی کالا کافی نمیباشد");
+                }
+            }
+            else
+            {
+                return messagebase.messages(false, ErrorCode.Conflict.GetHashCode(), qu.MessageError);
+            }
+
+            return messagebase.messages(false, ErrorCode.Conflict.GetHashCode(), "");
+        }
+
+        [Authorize]
         [HttpGet]
         [Route("api/[controller]/Quotations")]
         public string GetQuotations(int page_number = 1)
@@ -425,8 +571,15 @@ namespace sigma_api.Controllers
                     dt_Quotations = dt_Quotations.AsEnumerable().Skip((page_number - 1) * 10).CopyToDataTable();
                     dt_Quotations = dt_Quotations.AsEnumerable().Take(10).CopyToDataTable();
                 }
+
                 foreach (DataRow row in dt_Quotations.Rows)
                 {
+                    crmQuotationsResponseModel.Cycle cycle = new crmQuotationsResponseModel.Cycle()
+                    {
+                        RB_status = dt_Quotations.Rows[0]["RB_Status"] is null ? null : dt_Quotations.Rows[0]["RB_Status"].ToInt(),
+                        QU_status = dt_Quotations.Rows[0]["QU_Status"] is null ? null : dt_Quotations.Rows[0]["QU_Status"].ToInt(),
+                        INV_status = dt_Quotations.Rows[0]["INV_Status"] is null ? null : dt_Quotations.Rows[0]["INV_Status"].ToInt(),
+                    };
                     Quotations.Add(new crmQuotationsResponseModel()
                     {
                         QU_id = row["QU_id"].ToInt(),
@@ -537,6 +690,13 @@ namespace sigma_api.Controllers
                         });
                     }
 
+                    crmQuotationsResponseModel.Cycle cycle = new crmQuotationsResponseModel.Cycle()
+                    {
+                        RB_status = dt_Quotations.Rows[0]["RB_Status"] is null ? null : dt_Quotations.Rows[0]["RB_Status"].ToInt(),
+                        QU_status = dt_Quotations.Rows[0]["QU_Status"] is null ? null : dt_Quotations.Rows[0]["QU_Status"].ToInt(),
+                        INV_status = dt_Quotations.Rows[0]["INV_Status"] is null ? null : dt_Quotations.Rows[0]["INV_Status"].ToInt(),
+                    };
+
                     Quotations = new crmQuotationsResponseModel()
                     {
                         QU_id = dt_Quotations.Rows[0]["QU_id"].ToInt(),
@@ -559,6 +719,7 @@ namespace sigma_api.Controllers
                         SalesExpertId = dt_Quotations.Rows[0]["QU_SalesExpert"].ToInt(),
                         CustomerId = dt_Quotations.Rows[0]["QU_cst_id"].ToInt(),
                         Tell = dt_Quotations.Rows[0]["tel_tell"].ToString(),
+                        CycleStatus = cycle,
                         Details = details.ToArray() // فعلاً خالی
                     };
                 }

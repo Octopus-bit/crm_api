@@ -13,8 +13,8 @@ namespace sigma_api.Models
         public string QU_date { get; set; }
         //public string CycleFormDetailState { get; set; }
         public string Customer { get; set; } // نام مشتری
-        public string Supplier { get; set; } // کارشناس فروش
-        public string TypeSale { get; set; } // نوع فروش
+        public string Supplier { get; set; } // تامین کننده
+        public string TypeSale { get; set; } // نوع فروش - نقدری / اعتباری / نقدی اعتباری
         public string TypePayment { get; set; } // نوع پرداخت - روش پرداخت
         public decimal NetPrice { get; set; } // مبلغ خالص
         public string City { get; set; } // شهر مقصد
@@ -28,7 +28,15 @@ namespace sigma_api.Models
         public int SalesExpertId { get; set; } // شناسه کارشناس فروش
         public int CustomerId { get; set; } // شناسه مشتری 
         public string Tell { get; set; } // شماره تماس مشتری
+        public Cycle CycleStatus { get; set; }
         public Detail[] Details { get; set; }
+
+        public class Cycle
+        {
+            public int? RB_status { get; set; }
+            public int? QU_status { get; set; }
+            public int? INV_status { get; set; }
+        }
         public class Detail
         {
             public int id { get; set; } // شناسه ایتم پیش فاکتور

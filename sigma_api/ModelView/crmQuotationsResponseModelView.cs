@@ -11,6 +11,19 @@ namespace sigma_api.ModelView
     {
         public object results { get; set; }
 
+        private class CreatedQuotation
+        {
+            public int QU_id { get; set; }
+        }
+        public crmQuotationsResponseModelView(int QuotationId)
+        {
+            success = true;
+            code = ErrorCode.Created.GetHashCode();
+            results = new CreatedQuotation()
+            {
+                QU_id = QuotationId,
+            };
+        }
         public crmQuotationsResponseModelView(ListResponse response)
         {
             success = true;

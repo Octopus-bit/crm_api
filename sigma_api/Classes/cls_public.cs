@@ -34,6 +34,11 @@ namespace sigma_api.Classes
             }
         }
 
+        public SqlConnection connect()
+        {
+            return _con;
+        }
+        
         public void close()
         {
             if (_con.State == ConnectionState.Open)

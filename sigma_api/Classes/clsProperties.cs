@@ -58,7 +58,9 @@ namespace sigma_api.Classes
 
             DataView dv = new DataView(dtpropertis);
             dv.RowFilter = $"TNZ_name = '{name}'";
-            return dv.ToTable().Rows[0]["TNZ_sharh"];
+            var data = dv.ToTable().Rows[0]["TNZ_sharh"];
+
+            return data;
             /*foreach (DataRow row4 in dtpropertis.Rows)
             {
                 hhh++;
