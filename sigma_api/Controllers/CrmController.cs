@@ -143,12 +143,12 @@ namespace sigma_api.Controllers
         [AllowAnonymous]
         public string RegistryCode([FromBody] crmRegistryCodeRequestModelView request)
         {
-            string mobile;
-            string code;
+            string mobile = "";
+            int? code = null;
             mobile = request.mobile;
             try
             {
-                code = request.code.ToString();
+                code = request.code <= 0 || request.code is null ? null : request.code;
             }
             catch
             {
@@ -169,7 +169,7 @@ namespace sigma_api.Controllers
             SqlParameter[] parameters2 =
             {
                 new SqlParameter("Mobile", mobile),
-                new SqlParameter("RegistryCode", string.IsNullOrEmpty(code)?DBNull.Value:code),
+                new SqlParameter("RegistryCode", string.IsNullOrEmpty(code.ToString())?DBNull.Value:code),
             };
             string res_code = cp.insert_getid("API_RegistryCodeUsers", parameters2).ToString();
             if (res_code.StartsWith("1-"))
@@ -257,11 +257,11 @@ namespace sigma_api.Controllers
                     return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
                 }
             }
-            catch 
+            catch
             {
                 return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "Method not allowed");
             }
-            
+
             int Pages = 1;
             ListResponse list = new ListResponse();
             List<crmItemListResponseModel> ItemList = new List<crmItemListResponseModel>();

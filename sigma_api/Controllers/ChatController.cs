@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Controllers
 {
+    [ApiController]
+    [Route("api/[controller]")]
     public class ChatController : Controller
     {
-        public IActionResult Index()
-        {
-            return View();
-        }
+
     }
 }
