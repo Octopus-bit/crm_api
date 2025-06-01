@@ -118,21 +118,29 @@ namespace sigma_api.Controllers
 
             return JsonConvert.SerializeObject(response_SystemSettings);
         }
+        
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/IsAuthorized")]
+        public string IsAuthorized()
+        {
+            return messagebase.messages(true, ErrorCode.Send.GetHashCode(), "دسترسی مجاز");
+        }
 
         [Authorize]
         [HttpDelete]
         [Route("api/[controller]/logout")]
         public string logout()
         {
-            string token = coding.SigmaEncryptString(HttpContext.Items["token"].ToString());
+            string token = HttpContext.Items["token"].ToString();
             int UserId = HttpContext.Items["UserId"].ToInt();
             if (cp.command($"UPDATE dbo.API_Tokens SET tk_AtCreate = GETDATE()-1 WHERE tk_Token = '{token}' and tk_UserIdRef = {UserId}"))
             {
-                return messagebase.messages(true, ErrorCode.Send.GetHashCode(), "Token successfully revoked.");
+                return messagebase.messages(true, ErrorCode.Created.GetHashCode(), "Token successfully revoked.");
             }
             else
             {
-                return messagebase.messages(false, ErrorCode.Created.GetHashCode(), "Token was not successfully revoked.");
+                return messagebase.messages(false, ErrorCode.Conflict.GetHashCode(), "Token was not successfully revoked.");
             }
         }
     }

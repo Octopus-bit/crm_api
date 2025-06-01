@@ -68,6 +68,7 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
         int UserType = dt_UserInfo.Rows[0]["UserType"].ToInt();
         int UserId = dt_UserInfo.Rows[0]["UserId"].ToInt();
         string FullName = dt_UserInfo.Rows[0]["FullName"].ToString();
+        int ChatId = dt_UserInfo.Rows[0]["ChatId"].ToInt();
 
         if (UserId == 0)
         {
@@ -107,6 +108,7 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
             new Claim(ClaimTypes.Name, FullName),
             new Claim(ClaimTypes.Authentication, token),
             new Claim(ClaimTypes.Role, UserType.ToString()),
+            new Claim(ClaimTypes.Email, ChatId.ToString()),
         };
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);

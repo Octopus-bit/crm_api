@@ -28,7 +28,7 @@ namespace sigma_api.Controllers
         [HttpPost]
         [Route("api/[controller]/login")]
         [AllowAnonymous]
-        public string login(crmLoginRequestModelView request)
+        public string login([FromBody] crmLoginRequestModelView request)
         {
             string username, password;
             username = request.username;
@@ -141,7 +141,7 @@ namespace sigma_api.Controllers
         [HttpPost]
         [Route("api/[controller]/forgot-password")]
         [AllowAnonymous]
-        public string RegistryCode(crmRegistryCodeRequestModelView request)
+        public string RegistryCode([FromBody] crmRegistryCodeRequestModelView request)
         {
             string mobile;
             string code;
@@ -210,23 +210,25 @@ namespace sigma_api.Controllers
         [Authorize]
         [HttpPut]
         [Route("api/[controller]/reset-password")]
-        public string CheangPassword([Required] string NewPassword)
+        public string CheangPassword([FromBody] crmResetPasswordRequestModelView request)
         {
             messagebase m = new messagebase();
             int UserId = HttpContext.Items["UserId"].ToInt();
-            if (UserId == 0)
+            try
             {
-
-                m.code = ErrorCode.Authentication.GetHashCode();
-                m.success = false;
-                m.message = "عدم احراز هویت";
-
-                return JsonConvert.SerializeObject(m);
+                if (string.IsNullOrWhiteSpace(request.new_password))
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "new_password ارائه نشده است.");
+                }
+            }
+            catch
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "Method not allowed");
             }
             SqlParameter[] parameters =
             {
                 new SqlParameter("UserId", UserId),
-                new SqlParameter("Password", coding.SigmaEncryptString(NewPassword)),
+                new SqlParameter("Password", coding.SigmaEncryptString(request.new_password)),
             };
             if (cp.update("API_CheangPasswordUser", parameters))
             {
@@ -246,12 +248,20 @@ namespace sigma_api.Controllers
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/Items")]
-        public string ItemList(int page_number = 1)
+        public string ItemList([FromQuery] ListRequest request)
         {
-            if (page_number < 1)
+            try
             {
-                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
+                if (request.page_number < 1)
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
+                }
             }
+            catch 
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "Method not allowed");
+            }
+            
             int Pages = 1;
             ListResponse list = new ListResponse();
             List<crmItemListResponseModel> ItemList = new List<crmItemListResponseModel>();
@@ -281,7 +291,7 @@ namespace sigma_api.Controllers
                     Pages = 1;
                 if (dt_items.Rows.Count > 50)
                 {
-                    dt_items = dt_items.AsEnumerable().Skip((page_number - 1) * 50).CopyToDataTable();
+                    dt_items = dt_items.AsEnumerable().Skip((request.page_number - 1) * 50).CopyToDataTable();
                     dt_items = dt_items.AsEnumerable().Take(50).CopyToDataTable();
                 }
                 foreach (DataRow row in dt_items.Rows)
@@ -317,7 +327,7 @@ namespace sigma_api.Controllers
                 list = new ListResponse()
                 {
                     Pages = Pages,
-                    Page_row = page_number,
+                    Page_row = request.page_number,
                     List = ItemList
                 };
 
@@ -536,9 +546,9 @@ namespace sigma_api.Controllers
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/Quotations")]
-        public string GetQuotations(int page_number = 1)
+        public string GetQuotations([FromQuery] ListRequest request)
         {
-            if (page_number < 1)
+            if (request.page_number < 1)
             {
                 return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
             }
@@ -568,7 +578,7 @@ namespace sigma_api.Controllers
                     Pages = 1;
                 if (dt_Quotations.Rows.Count > 10)
                 {
-                    dt_Quotations = dt_Quotations.AsEnumerable().Skip((page_number - 1) * 10).CopyToDataTable();
+                    dt_Quotations = dt_Quotations.AsEnumerable().Skip((request.page_number - 1) * 10).CopyToDataTable();
                     dt_Quotations = dt_Quotations.AsEnumerable().Take(10).CopyToDataTable();
                 }
 
@@ -576,9 +586,9 @@ namespace sigma_api.Controllers
                 {
                     crmQuotationsResponseModel.Cycle cycle = new crmQuotationsResponseModel.Cycle()
                     {
-                        RB_status = dt_Quotations.Rows[0]["RB_Status"] is null ? null : dt_Quotations.Rows[0]["RB_Status"].ToInt(),
-                        QU_status = dt_Quotations.Rows[0]["QU_Status"] is null ? null : dt_Quotations.Rows[0]["QU_Status"].ToInt(),
-                        INV_status = dt_Quotations.Rows[0]["INV_Status"] is null ? null : dt_Quotations.Rows[0]["INV_Status"].ToInt(),
+                        RB_status = string.IsNullOrEmpty(row["RB_Status"].ToString()) ? null : row["RB_Status"].ToInt(),
+                        QU_status = string.IsNullOrEmpty(row["QU_Status"].ToString()) ? null : row["QU_Status"].ToInt(),
+                        INV_status = string.IsNullOrEmpty(row["INV_Status"].ToString()) ? null : row["INV_Status"].ToInt(),
                     };
                     Quotations.Add(new crmQuotationsResponseModel()
                     {
@@ -602,13 +612,14 @@ namespace sigma_api.Controllers
                         SalesExpertId = row["QU_SalesExpert"].ToInt(),
                         CustomerId = row["QU_cst_id"].ToInt(),
                         Tell = row["tel_tell"].ToString(),
+                        CycleStatus = cycle,
                         Details = Array.Empty<crmQuotationsResponseModel.Detail>() // فعلاً خالی
                     });
                 }
                 list = new ListResponse()
                 {
                     Pages = Pages,
-                    Page_row = page_number,
+                    Page_row = request.page_number,
                     List = Quotations
                 };
 
@@ -692,9 +703,9 @@ namespace sigma_api.Controllers
 
                     crmQuotationsResponseModel.Cycle cycle = new crmQuotationsResponseModel.Cycle()
                     {
-                        RB_status = dt_Quotations.Rows[0]["RB_Status"] is null ? null : dt_Quotations.Rows[0]["RB_Status"].ToInt(),
-                        QU_status = dt_Quotations.Rows[0]["QU_Status"] is null ? null : dt_Quotations.Rows[0]["QU_Status"].ToInt(),
-                        INV_status = dt_Quotations.Rows[0]["INV_Status"] is null ? null : dt_Quotations.Rows[0]["INV_Status"].ToInt(),
+                        RB_status = string.IsNullOrEmpty(dt_Quotations.Rows[0]["RB_Status"].ToString()) ? null : dt_Quotations.Rows[0]["RB_Status"].ToInt(),
+                        QU_status = string.IsNullOrEmpty(dt_Quotations.Rows[0]["QU_Status"].ToString()) ? null : dt_Quotations.Rows[0]["QU_Status"].ToInt(),
+                        INV_status = string.IsNullOrEmpty(dt_Quotations.Rows[0]["INV_Status"].ToString()) ? null : dt_Quotations.Rows[0]["INV_Status"].ToInt(),
                     };
 
                     Quotations = new crmQuotationsResponseModel()
@@ -733,9 +744,9 @@ namespace sigma_api.Controllers
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/bill")]
-        public string GetBill(int page_number = 1)
+        public string GetBill([FromQuery] ListRequest request)
         {
-            if (page_number < 1)
+            if (request.page_number < 1)
             {
                 return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
             }
@@ -837,7 +848,7 @@ AND DLRef=5967";
                         Pages = 1;
                     if (dt_ditales.Rows.Count > 15)
                     {
-                        dt_ditales = dt_ditales.AsEnumerable().Skip((page_number - 1) * 15).CopyToDataTable();
+                        dt_ditales = dt_ditales.AsEnumerable().Skip((request.page_number - 1) * 15).CopyToDataTable();
                         dt_ditales = dt_ditales.AsEnumerable().Take(15).CopyToDataTable();
                     }
                     List<crmBillResponseModel.turnover> turnover = new List<crmBillResponseModel.turnover>();
@@ -857,7 +868,7 @@ AND DLRef=5967";
                     header.Turnovers = new ListResponse()
                     {
                         Pages = Pages,
-                        Page_row = page_number,
+                        Page_row = request.page_number,
                         List = turnover
                     };
                     response_bill = new crmBillResponseModelView(header);

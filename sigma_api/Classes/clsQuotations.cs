@@ -81,10 +81,8 @@ namespace sigma_api.Classes
                 stockstrgh = "NULL";
             }
             string chaneg = "";
-            if (CheckPishnevis)
-                chaneg = "1";
-            else
-                chaneg = "0";
+            chaneg = "1";
+
 
             command.CommandText = @"
 BEGIN TRANSACTION [Tran1]
@@ -166,8 +164,8 @@ COMMIT TRANSACTION[Tran1]
                 sumprice = sumprice + decimal.Parse(dr["price"].ToString());
                 decimal priceDescount = ((decimal.Parse(dr["price"].ToString()) * decimal.Parse(dr["discountCustomer"].ToString())) / 100);
                 sumdescount = sumdescount + priceDescount;
-                sumtax = sumtax + (((decimal.Parse(dr["price"].ToString())-priceDescount) * decimal.Parse(dr["tax"].ToString())) / 100);
-                txtfinal = txtfinal + (sumprice - sumdescount)+sumtax;
+                sumtax = sumtax + (((decimal.Parse(dr["price"].ToString()) - priceDescount) * decimal.Parse(dr["tax"].ToString())) / 100);
+                txtfinal = txtfinal + (sumprice - sumdescount) + sumtax;
             }
 
             command.Parameters.Add("@Discount", SqlDbType.Decimal).Value = sumdescount;
@@ -287,7 +285,7 @@ COMMIT TRANSACTION[Tran1]
                                 }
 
                                 decimal descount = ((decimal.Parse(dr["price"].ToString()) * decimal.Parse(dr["discountCustomer"].ToString())) / 100);
-                                decimal tax = (((decimal.Parse(dr["price"].ToString())-descount) * decimal.Parse(dr["tax"].ToString())) / 100);
+                                decimal tax = (((decimal.Parse(dr["price"].ToString()) - descount) * decimal.Parse(dr["tax"].ToString())) / 100);
                                 decimal netPrice = (decimal.Parse(dr["price"].ToString()) - descount) + tax;
                                 if (netPrice != dr["netPrice"].ToDecimal())
                                 {
