@@ -24,6 +24,7 @@ namespace sigma_api.Controllers
         crmQuotationsResponseModelView response_quotations;
         generalInfoCustomerResponseModelView response_InfoCustomer;
         crmBillResponseModelView response_bill;
+        crmCycleRefferingResponseModelView response_Cycle;
 
         [HttpPost]
         [Route("api/[controller]/login")]
@@ -586,9 +587,17 @@ namespace sigma_api.Controllers
                 {
                     crmQuotationsResponseModel.Cycle cycle = new crmQuotationsResponseModel.Cycle()
                     {
+                        RB_id = string.IsNullOrEmpty(row["RB_id"].ToString()) ? null : row["RB_id"].ToInt(),
                         RB_status = string.IsNullOrEmpty(row["RB_Status"].ToString()) ? null : row["RB_Status"].ToInt(),
+
+                        QU_id = string.IsNullOrEmpty(row["QU_id"].ToString()) ? null : row["QU_id"].ToInt(),
                         QU_status = string.IsNullOrEmpty(row["QU_Status"].ToString()) ? null : row["QU_Status"].ToInt(),
+
+                        INV_id = string.IsNullOrEmpty(row["INV_id"].ToString()) ? null : row["INV_id"].ToInt(),
                         INV_status = string.IsNullOrEmpty(row["INV_Status"].ToString()) ? null : row["INV_Status"].ToInt(),
+
+                        LD_id = string.IsNullOrEmpty(row["LD_id"].ToString()) ? null : row["LD_id"].ToInt(),
+                        LD_status = string.IsNullOrEmpty(row["LD_Status"].ToString()) ? null : row["LD_Status"].ToInt(),
                     };
                     Quotations.Add(new crmQuotationsResponseModel()
                     {
@@ -739,6 +748,63 @@ namespace sigma_api.Controllers
             response_quotations = new crmQuotationsResponseModelView(Quotations);
 
             return JsonConvert.SerializeObject(response_quotations);
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/Cycle/{Id}")]
+        public string GetCycle(int? Type, int? Id)
+        {
+            if (Type == null)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "Type ارائه نشده است.");
+            }
+
+            if (Id == null)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "Id ارائه نشده است.");
+            }
+
+            List<crmCycleRefferingResponseModel> cycle = new List<crmCycleRefferingResponseModel>();
+            messagebase m = new messagebase();
+            SqlParameter[] parameters = new SqlParameter[]
+            {
+                new SqlParameter("FormId", Id),
+                new SqlParameter("FormType", Type)
+            };
+            DataTable dt_cycle = new DataTable();
+            dt_cycle = cp.select_row("API_GetCycleReffering", parameters);
+            if (cls_public.sqlError.success == false)
+            {
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "DBO_Unavailable");
+            }
+            else
+            {
+                if (dt_cycle.Rows.Count > 0)
+                {
+                    foreach (DataRow row in dt_cycle.Rows)
+                    {
+                        cycle.Add(new crmCycleRefferingResponseModel()
+                        {
+                            SendDate = string.IsNullOrEmpty(row["RFF_Senddate"].ToString()) ? null : Convert.ToDateTime(row["RFF_Senddate"]),
+                            Sender = row["sender"].ToString(),
+                            Reciever = row["reciever"].ToString(),
+                            Subject = row["RFF_Subject"].ToString(),
+                            Summary = row["RFF_Summary"].ToString(),
+                            ShowDate = Convert.ToDateTime(row["RFF_Showdate"]),
+                            Approver = row["confier"].ToString(),
+                            ConfirmDate = string.IsNullOrEmpty(row["RFF_confirmdate"].ToString()) ? null : Convert.ToDateTime(row["RFF_confirmdate"].ToString()),
+                            Valid_id = row["RFF_Valid"].ToBoolean(),
+                        });
+
+
+                    }
+
+                }
+
+            }
+            response_Cycle = new crmCycleRefferingResponseModelView(cycle);
+            return JsonConvert.SerializeObject(response_Cycle);
         }
 
         [Authorize]

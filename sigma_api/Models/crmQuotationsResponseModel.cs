@@ -33,9 +33,14 @@ namespace sigma_api.Models
 
         public class Cycle
         {
+            public int? RB_id { get; set; }
             public int? RB_status { get; set; }
+            public int? QU_id { get; set; }
             public int? QU_status { get; set; }
+            public int? INV_id { get; set; }
             public int? INV_status { get; set; }
+            public int? LD_id { get; set; }
+            public int? LD_status { get; set; }
         }
         public class Detail
         {
