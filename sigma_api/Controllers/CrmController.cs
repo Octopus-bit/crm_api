@@ -752,7 +752,7 @@ namespace sigma_api.Controllers
 
         [Authorize]
         [HttpGet]
-        [Route("api/[controller]/Cycle/{Id}")]
+        [Route("api/[controller]/Cycle/{Id?}")]
         public string GetCycle(int? Type, int? Id)
         {
             if (Type == null)
