@@ -19,6 +19,7 @@ namespace sigma_api.Classes
         public static messagebase sqlError = new messagebase();
         public cls_public()
         {
+            sqlError.message = null;
             try
             {
                 _con = connct;//new SqlConnection("Data Source=192.168.233.10; Initial Catalog=SigmaCrm; User ID=sa; Password=sa@12345678;");//connct;
