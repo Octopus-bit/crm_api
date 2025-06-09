@@ -34,6 +34,10 @@ namespace sigma_api.Controllers
             string username, password;
             username = request.username;
             password = coding.SigmaEncryptString(/*coding.SafeFarsiStr(*/request.password/*)*/);
+            if (cp.select_command($"SELECT * FROM dbo.PRG_Tell WHERE tel_tell = '{username}' AND tel_type = 1").Rows.Count <= 0)
+            {
+                return messagebase.messages(false, ErrorCode.InvalidUser.GetHashCode(), "حساب کاربری یافت نشد");
+            }
             SqlParameter[] parameters =
             {
                 new SqlParameter("username",username),
@@ -166,7 +170,10 @@ namespace sigma_api.Controllers
             {
                 mobile = mobile.Replace("+98", "0");
             }
-
+            if (cp.select_command($"SELECT * FROM dbo.PRG_Tell WHERE tel_tell = '{mobile}' AND tel_type = 1").Rows.Count <= 0)
+            {
+                return messagebase.messages(false, ErrorCode.InvalidUser.GetHashCode(), "حساب کاربری یافت نشد");
+            }
             SqlParameter[] parameters2 =
             {
                 new SqlParameter("Mobile", mobile),

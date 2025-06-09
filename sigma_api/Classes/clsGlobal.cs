@@ -7,6 +7,12 @@ using System.Collections;
 using System.IO;
 using System.Diagnostics;
 using System.Net.Mime;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 using sigma_api.Classes;
 
 namespace sigma_api.classes
@@ -1097,8 +1103,10 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
             Dtresult = dtSale;
             return Dtresult;
         }
-        public static string CommandTextR(int number, int type, string ccd_id, int customer, string stock, string ccd_itemtype, bool state,
-        string ccd_period, string ccd_periodtype, decimal MetrajJari, decimal MoneyJari, bool TypeJari)
+
+        public static string CommandTextR(int number, int type, string ccd_id, int customer, string stock,
+            string ccd_itemtype, bool state,
+            string ccd_period, string ccd_periodtype, decimal MetrajJari, decimal MoneyJari, bool TypeJari)
         {
             DateTime DTNOW = cp.GetDateTime().Date;
             DateTime DTNOW2 = DTNOW;
@@ -1109,6 +1117,7 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                 DTNOWStr = DTNOWStr.Substring(0, 4) + "/01/01";
                 DTNOW = ShamsiDate.Shamsi2Miladi(DTNOWStr);
             }
+
             if (ccd_periodtype == "1")
                 DTNOW = DTNOW.AddMonths(-(Int32.Parse(ccd_period)));
             string StrResualt = "";
@@ -1125,6 +1134,7 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                 string DTNOWStr3 = DTNOWStr2.Substring(0, 4) + "/12/29";
                 DTNOW2 = ShamsiDate.Shamsi2Miladi(DTNOWStr3);
             }
+
             DTPeriodType2 = DTNOW2;
 
             if (number == 0)
@@ -1138,9 +1148,11 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                 //    shart = " having SUM(i.debit - i.credit) " + conditionStr + " " + drfilmoneyF + conditionStr2;
                 //}
                 StrResualt = @"select SUM(i.debit - i.credit) from " + DataMali + @".ACC.vwVoucherItem i
-                    where Convert(date,i.VoucherDate)>=@date and DLRef=(select csT_dl from dbo.PRG_Customers where cst_id=" + customer.ToString() + @")
-                    and i.SLCode ='" + ccd_itemtype + "'";// + @"' group by i.SLCode " + shart;
+                    where Convert(date,i.VoucherDate)>=@date and DLRef=(select csT_dl from dbo.PRG_Customers where cst_id=" +
+                             customer.ToString() + @")
+                    and i.SLCode ='" + ccd_itemtype + "'"; // + @"' group by i.SLCode " + shart;
             }
+
             if (number == 1)
             {
                 if (ccd_itemtype == "0")
@@ -1158,9 +1170,11 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                     StrResualt = @"SELECT     count(RB_cst_id)
                     FROM         PRG_RequestBuy INNER JOIN
                                           PRG_RequestBuyItem ON PRG_RequestBuy.RB_id = PRG_RequestBuyItem.RBI_RB_id
-                                          where (RB_type = 1) " + stock3 + @" RB_cst_id=" + customer.ToString() + @" and Convert(date,RB_date)>=@date ";//group by RB_cst_id                     " + shart;
+                                          where (RB_type = 1) " + stock3 + @" RB_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,RB_date)>=@date "; //group by RB_cst_id                     " + shart;
 
                 }
+
                 if (ccd_itemtype == "1")
                 {
                     // شرط متراژ درخواست خرید
@@ -1175,8 +1189,10 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                     StrResualt = @"SELECT isnull(Sum(RBI_metraj),0)+" + MetrajJari.ToString().Replace("/", ".") + @"
                     FROM         PRG_RequestBuy INNER JOIN
                                           PRG_RequestBuyItem ON PRG_RequestBuy.RB_id = PRG_RequestBuyItem.RBI_RB_id
-                    where (RB_type = 1) " + stock3 + @" RB_cst_id=" + customer.ToString() + @" and Convert(date,RB_date)>=@date ";//group by RB_cst_id                     " + shart;
+                    where (RB_type = 1) " + stock3 + @" RB_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,RB_date)>=@date "; //group by RB_cst_id                     " + shart;
                 }
+
                 if (ccd_itemtype == "2")
                 {
                     // شرط تعداد پیش فاکتور
@@ -1191,8 +1207,10 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                     StrResualt = @"SELECT count(QU_cst_id) 
                     FROM         PRG_Quotation INNER JOIN
                                           PRG_QuotationItem ON PRG_Quotation.QU_id = PRG_QuotationItem.QUI_QU_id
-                    where (QU_type = 1) " + stock3 + @" QU_cst_id=" + customer.ToString() + @" and Convert(date,QU_date)>=@date ";//group by QU_cst_id                     " + shart;
+                    where (QU_type = 1) " + stock3 + @" QU_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,QU_date)>=@date "; //group by QU_cst_id                     " + shart;
                 }
+
                 if (ccd_itemtype == "3")
                 {
                     // شرط مبلغ پیش فاکتور
@@ -1201,9 +1219,11 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                     StrResualt = @"SELECT Sum(QUI_NetPrice) 
                     FROM         PRG_Quotation INNER JOIN
                                           PRG_QuotationItem ON PRG_Quotation.QU_id = PRG_QuotationItem.QUI_QU_id
-                    where (QU_type = 1) AND QU_cst_id=" + customer.ToString() + @" and Convert(date,QU_date)>=@date ";//group by QU_cst_id                         " + shart;
-                                                                                                                      //  where(QU_type = 1) " + stock3 + @" QU_cst_id = " + customer.ToString() + @" and Convert(date, QU_date)>= @date ";//group by QU_cst_id                         " + shart;
+                    where (QU_type = 1) AND QU_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,QU_date)>=@date "; //group by QU_cst_id                         " + shart;
+                    //  where(QU_type = 1) " + stock3 + @" QU_cst_id = " + customer.ToString() + @" and Convert(date, QU_date)>= @date ";//group by QU_cst_id                         " + shart;
                 }
+
                 if (ccd_itemtype == "8")
                 {
                     // شرط متراژ پیش فاکتور
@@ -1212,9 +1232,11 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                     StrResualt = @"SELECT Sum(QUI_value)
                     FROM         PRG_Quotation INNER JOIN
                                           PRG_QuotationItem ON PRG_Quotation.QU_id = PRG_QuotationItem.QUI_QU_id
-                    where (QU_type = 1) AND QU_cst_id=" + customer.ToString() + @" and Convert(date,QU_date)>=@date ";//group by QU_cst_id                     " + shart;
+                    where (QU_type = 1) AND QU_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,QU_date)>=@date "; //group by QU_cst_id                     " + shart;
 
                 }
+
                 if (ccd_itemtype == "4")
                 {
                     // شرط تعداد بارگیری
@@ -1224,8 +1246,10 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                     FROM         PRG_Quotation INNER JOIN
                                           PRG_QuotationItem ON PRG_Quotation.QU_id = PRG_QuotationItem.QUI_QU_id INNER JOIN
                       PRG_Lading ON PRG_Quotation.QU_id = PRG_Lading.LD_Qu_id
-                    where (LD_state = 1) AND LD_cst_id=" + customer.ToString() + @" and Convert(date,LD_datebargiri)>=@date";// group by LD_cst_id                         " + shart;
+                    where (LD_state = 1) AND LD_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,LD_datebargiri)>=@date"; // group by LD_cst_id                         " + shart;
                 }
+
                 if (ccd_itemtype == "5")
                 {
                     // شرط مبلغ بارگیری
@@ -1235,8 +1259,10 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                     FROM         PRG_Quotation INNER JOIN
                                           PRG_QuotationItem ON PRG_Quotation.QU_id = PRG_QuotationItem.QUI_QU_id INNER JOIN
                       PRG_Lading ON PRG_Quotation.QU_id = PRG_Lading.LD_Qu_id
-                    where (LD_state = 1) AND LD_cst_id=" + customer.ToString() + @" and Convert(date,LD_datebargiri)>=@date ";//group by LD_cst_id                     " + shart;
+                    where (LD_state = 1) AND LD_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,LD_datebargiri)>=@date "; //group by LD_cst_id                     " + shart;
                 }
+
                 if (ccd_itemtype == "9")
                 {
                     // شرط متراژ بارگیری
@@ -1246,8 +1272,10 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
                     FROM         PRG_Quotation INNER JOIN
                                           PRG_QuotationItem ON PRG_Quotation.QU_id = PRG_QuotationItem.QUI_QU_id INNER JOIN
                       PRG_Lading ON PRG_Quotation.QU_id = PRG_Lading.LD_Qu_id
-                    where (LD_state = 1) AND LD_cst_id=" + customer.ToString() + @" and Convert(date,LD_datebargiri)>=@date";//group by LD_cst_id                         " + shart;
+                    where (LD_state = 1) AND LD_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,LD_datebargiri)>=@date"; //group by LD_cst_id                         " + shart;
                 }
+
                 if (ccd_itemtype == "6")
                 {
                     // شرط تعداد فاکتور
@@ -1262,8 +1290,10 @@ where  (cc_formlimited=0 OR cc_formlimited=" + formLimited.ToString() + @") AND 
 FROM " + DataMali + @".SLS.Invoice INV INNER JOIN
                       " + DataMali + @".SLS.InvoiceItem INVITM ON INV.InvoiceId = INVITM.InvoiceRef
                     where (INV.State = 1) AND INV.CustomerPartyRef=(SELECT PartyId FROM " + DataMali + @".GNR.Party
-WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToString() + @")) and INV.QuotationRef is not null AND Convert(date,INV.Date)>=@date ";//group by INV.CustomerPartyRef                     " + shart;
+WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToString() +
+                                 @")) and INV.QuotationRef is not null AND Convert(date,INV.Date)>=@date "; //group by INV.CustomerPartyRef                     " + shart;
                 }
+
                 if (ccd_itemtype == "7")
                 {
                     // شرط مبلغ فاکتور
@@ -1278,8 +1308,10 @@ WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToSt
 FROM " + DataMali + @".SLS.Invoice INV INNER JOIN
                       " + DataMali + @".SLS.InvoiceItem INVITM ON INV.InvoiceId = INVITM.InvoiceRef
                     where (INV.State = 1) AND INV.CustomerPartyRef=(SELECT PartyId FROM " + DataMali + @".GNR.Party
-WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToString() + @")) and INV.QuotationRef is not null AND Convert(date,INV.Date)>=@date ";//group by INV.CustomerPartyRef                     " + shart;
+WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToString() +
+                                 @")) and INV.QuotationRef is not null AND Convert(date,INV.Date)>=@date "; //group by INV.CustomerPartyRef                     " + shart;
                 }
+
                 if (ccd_itemtype == "12")
                 {
                     // مبلغ پیش فاکتور جاری
@@ -1288,6 +1320,7 @@ WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToSt
                     else
                         StrResualt = @"SELECT -1";
                 }
+
                 if (ccd_itemtype == "13")
                 {
                     // متراژ پیش فاکتور جاری
@@ -1296,6 +1329,7 @@ WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToSt
                     else
                         StrResualt = @"SELECT -1";
                 }
+
                 if (ccd_itemtype == "14")
                 {
                     // متراژ درخواست خرید جاری 
@@ -1304,6 +1338,7 @@ WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToSt
                     else
                         StrResualt = @"SELECT -1";
                 }
+
                 if (ccd_itemtype == "11")
                 {
                     DataTable dtfiscalyear = classes.clsDB.GetFiscalYearNow(FiscalYearNowStr);
@@ -1362,6 +1397,7 @@ WHERE (t.Date < @date2 OR t.Date IS NULL ) ";
                     //}
                     //StrResualt = @"SELECT SUM([Debit]-[Credit]) FROM " + DataMali + @".ACC.vwVoucherItem WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToString() + @") AND SLCode ='111201' AND Convert(date,VoucherDate)>=@date";// group by DLRef                     " + shart;
                 }
+
                 if (ccd_itemtype == "10")
                 {
                     string shart = "";
@@ -1379,9 +1415,11 @@ WHERE (t.Date < @date2 OR t.Date IS NULL ) ";
 FROM " + DataMali + @".SLS.Invoice INV INNER JOIN
                       " + DataMali + @".SLS.InvoiceItem INVITM ON INV.InvoiceId = INVITM.InvoiceRef
                     where (INV.State = 1) AND INV.CustomerPartyRef=(SELECT PartyId FROM " + DataMali + @".GNR.Party
-WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToString() + @")) and INV.QuotationRef is not null AND Convert(date,INV.Date)>=@date ";//group by INV.CustomerPartyRef                     " + shart;
+WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToString() +
+                                 @")) and INV.QuotationRef is not null AND Convert(date,INV.Date)>=@date "; //group by INV.CustomerPartyRef                     " + shart;
                 }
             }
+
             if (number == 2)
             {
                 if (ccd_itemtype == "50")
@@ -1392,6 +1430,7 @@ WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToSt
                     StrResualt = @"SELECT  VL_finalscore
 FROM         PRG_ValidateCustomer Where VL_state=1 AND VL_CST_id=" + customer.ToString();
                 }
+
                 if (ccd_itemtype == "51")
                 {
 
@@ -1399,16 +1438,20 @@ FROM         PRG_ValidateCustomer Where VL_state=1 AND VL_CST_id=" + customer.To
                     string shart = "";
                     StrResualt = @"SELECT  COUNT(CB_cst_id)
                     FROM         PRG_ChequeBack
-                    WHERE   CB_cst_id=" + customer.ToString() + @" and Convert(date,CB_date)>=@date ";//group by CB_cst_id                    " + shart;
+                    WHERE   CB_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,CB_date)>=@date "; //group by CB_cst_id                    " + shart;
                 }
+
                 if (ccd_itemtype == "52")
                 {
                     // شرط مبلغ مبلغ چک برگشتی سی ار ام
                     string shart = "";
                     StrResualt = @"SELECT Sum(CB_money)
                     FROM         PRG_ChequeBack
-                    WHERE   CB_cst_id=" + customer.ToString() + @" and Convert(date,CB_date)>=@date ";//group by CB_cst_id                   " + shart;
+                    WHERE   CB_cst_id=" + customer.ToString() +
+                                 @" and Convert(date,CB_date)>=@date "; //group by CB_cst_id                   " + shart;
                 }
+
                 if (Int32.Parse(ccd_itemtype) >= 53 & Int32.Parse(ccd_itemtype) <= 66)
                 {
                     string yearsStr = "";
@@ -1423,6 +1466,7 @@ FROM         PRG_ValidateCustomer Where VL_state=1 AND VL_CST_id=" + customer.To
                         yearsStr = "-1";
                         yearsStr2 = " AND FiscalYearRef = @outCount ";
                     }
+
                     string datefinal = "";
                     string Str1 = "";
                     string StrState = "";
@@ -1431,65 +1475,77 @@ FROM         PRG_ValidateCustomer Where VL_state=1 AND VL_CST_id=" + customer.To
                         Str1 = " Count(*) ";
                         StrState = "16";
                     }
+
                     if (ccd_itemtype == "54")
                     {
                         Str1 = " SUM([AmountInBaseCurrency]) ";
                         StrState = "16";
                     }
+
                     if (ccd_itemtype == "55")
                     {
                         Str1 = " Count(*) ";
                         StrState = "8";
                     }
+
                     if (ccd_itemtype == "56")
                     {
                         Str1 = " SUM([AmountInBaseCurrency]) ";
                         StrState = "8";
                     }
+
                     if (ccd_itemtype == "57")
                     {
                         Str1 = " Count(*) ";
                         StrState = "2";
                     }
+
                     if (ccd_itemtype == "58")
                     {
                         Str1 = " SUM([AmountInBaseCurrency]) ";
                         StrState = "2";
                     }
+
                     if (ccd_itemtype == "59")
                     {
                         Str1 = " Count(*) ";
                         StrState = "4";
                     }
+
                     if (ccd_itemtype == "60")
                     {
                         Str1 = " SUM([AmountInBaseCurrency]) ";
                         StrState = "4";
                     }
+
                     if (ccd_itemtype == "61")
                     {
                         Str1 = " Count(*) ";
                         StrState = "1";
                         datefinal = "  and Type!=4";
                     }
+
                     if (ccd_itemtype == "62")
                     {
                         Str1 = " SUM([AmountInBaseCurrency]) ";
                         StrState = "1";
                         datefinal = " and Type!=4";
                     }
+
                     if (ccd_itemtype == "63")
                     {
                         Str1 = " Count(*) ";
                         StrState = "64";
                         datefinal = " and State!=4";
                     }
+
                     if (ccd_itemtype == "64")
                     {
                         Str1 = " SUM([AmountInBaseCurrency]) ";
                         StrState = "64";
                         datefinal = " and State!=4";
                     }
+
                     //65و66 چک های خرج شده هستند که تاریخ سررسیدشان باید بزرگتر از تاریخ روز باشد و از نوع چک ضمانت هم نباشند
                     // برای بقیههم نباید چک ضمانت باشند
                     if (ccd_itemtype == "65")
@@ -1499,6 +1555,7 @@ FROM         PRG_ValidateCustomer Where VL_state=1 AND VL_CST_id=" + customer.To
                         datefinal = " and Date>getdate() and Type!=4";
                         // datefinal = " and Type!=4 ";
                     }
+
                     if (ccd_itemtype == "66")
                     {
                         Str1 = " SUM([AmountInBaseCurrency]) ";
@@ -1506,6 +1563,7 @@ FROM         PRG_ValidateCustomer Where VL_state=1 AND VL_CST_id=" + customer.To
                         datefinal = " and Date>getdate() and Type!=4";
                         // datefinal = " and Type!=4 ";
                     }
+
                     StrResualt = @" declare @sqlstring nvarchar(MAX)
     declare @datamali nvarchar(500)
     set @datamali = (select TNZ_sharh from dbo.PRG_Propertise where TNZ_name = 'DataMali')
@@ -1528,16 +1586,22 @@ FROM         PRG_ValidateCustomer Where VL_state=1 AND VL_CST_id=" + customer.To
                           )History ON History.ReceiptChequeRef = Submit2.ReceiptChequeRef AND History.RN = 1
                               AND History.ReceiptChequeBankingItemRef = Submit2.ReceiptChequeBankingItemId
                   ) AS  Submit ON Submit.ReceiptChequeRef = ReceiptChq.ReceiptChequeId AND Submit.hState = 2)  AS ReceiptCheque
-   WHERE((EXISTS(SELECT 1 FROM " + DataMali + @".Rpa.ReceiptHeader H Where H.ReceiptHeaderID = ReceiptHeaderRef " + yearsStr2 + @")OR exists(select * from " + DataMali + @".rpa.ReceiptChequeHistory HH
+   WHERE((EXISTS(SELECT 1 FROM " + DataMali + @".Rpa.ReceiptHeader H Where H.ReceiptHeaderID = ReceiptHeaderRef " +
+                                 yearsStr2 + @")OR exists(select * from " + DataMali + @".rpa.ReceiptChequeHistory HH
                      where Convert(date,Date) >= dateadd(year, " + yearsStr + @",@date2)  and
                            Convert(date,Date) <= @date2  and type in (33, 53, 54) and
                            exists(select * from " + DataMali + @".rpa.ReceiptChequeHistory hhh
                                    where Type in (53, 54) and hhh.ReceiptChequeHistoryID =
-                                            (select top 1 ReceiptChequeHistoryID from " + DataMali + @".rpa.ReceiptChequeHistory HH2
-                                             where Convert(date,Date) >= dateadd(year, " + yearsStr + @",@date2) and hh2.[ReceiptChequeRef] = hhh.[ReceiptChequeRef]
+                                            (select top 1 ReceiptChequeHistoryID from " + DataMali +
+                                 @".rpa.ReceiptChequeHistory HH2
+                                             where Convert(date,Date) >= dateadd(year, " + yearsStr +
+                                 @",@date2) and hh2.[ReceiptChequeRef] = hhh.[ReceiptChequeRef]
                                              order by ReceiptChequeHistoryId) and
                                           hh.ReceiptChequeRef = hhh.[ReceiptChequeRef]) and
-                            [ReceiptChequeId] = hh.ReceiptChequeRef) ) ) and [State] = " + StrState + @" and DlRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToString() + @") " + datefinal;
+                            [ReceiptChequeId] = hh.ReceiptChequeRef) ) ) and [State] = " + StrState +
+                                 @" and DlRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " +
+                                 customer.ToString() + @") " +
+                                 datefinal;
                 }
 
             }

@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Newtonsoft.Json;
 using sigma_api.Classes;
 using sigma_api.Models;
@@ -23,6 +24,36 @@ namespace sigma_api.Controllers
         public chatConversationCreatedResponseModelView response_createConversations;
         public chatMessageCreateResponseModelView response_createMessage;
         public chatMessagesResponseModelView response_messages;
+
+
+        private readonly IWebHostEnvironment _env;
+        public ChatController(IWebHostEnvironment env)
+        {
+            _env = env;
+        }
+        public string ImageConverter(byte[] file, string filename)
+        {
+            string folderPath = Path.Combine(_env.WebRootPath == null ? _env.ContentRootPath : _env.WebRootPath, "images");
+
+            if (!Directory.Exists(folderPath))
+                Directory.CreateDirectory(folderPath);
+
+            string filePath = Path.Combine(folderPath, filename);
+            string imageUrl = null;
+            if (file != null)
+                if (file.Length > 0)
+                {
+
+                    if (!System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.WriteAllBytes(filePath, file);
+                    }
+
+                    imageUrl = $"{Request.Scheme}://{Request.Host}/images/{filename}";
+                }
+
+            return imageUrl;
+        }
 
         [Authorize]
         [HttpGet]
@@ -65,7 +96,7 @@ namespace sigma_api.Controllers
                         Name = row["FullName"].ToString(),
                         phone = row["phone"].ToString(),
                         email = row["email"].ToString(),
-                        avatar = row["avatar"].ToString(),
+                        avatar = ImageConverter((byte[])row["avatar"], HttpContext.Items["ChatId"].ToString() + ".jpg"),
                         bio = row["us_bio"].ToString(),
                         unReadCount = row["us_unreadCount"].ToInt(),
                         lastseen = string.IsNullOrEmpty(row["us_lastSeen"].ToString()) ? null : Convert.ToDateTime(row["us_lastSeen"].ToString()),
@@ -118,7 +149,50 @@ namespace sigma_api.Controllers
                         Name = row["FullName"].ToString(),
                         phone = row["phone"].ToString(),
                         email = row["email"].ToString(),
-                        avatar = row["avatar"].ToString(),
+                        avatar = ImageConverter(string.IsNullOrEmpty(row["avatar"].ToString()) ? null : (byte[])row["avatar"], UserId + ".jpg"),
+                        bio = row["us_bio"].ToString(),
+                        unReadCount = row["us_unreadCount"].ToInt(),
+                        lastseen = string.IsNullOrEmpty(row["us_lastSeen"].ToString()) ? null : Convert.ToDateTime(row["us_lastSeen"].ToString()),
+                        statusName = row["StatusName"].ToString(),
+                        status = row["us_status"].ToInt(),
+                    };
+                }
+            }
+
+            response_users = new chatUserInfoResponseModelView(user);
+            //API_ChatGetInfoUsers
+            return JsonConvert.SerializeObject(response_users);
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/get-User-info")]
+        public string GetUserInfo()
+        {
+            chatUserInfoResponseModel user = new chatUserInfoResponseModel();
+            int type = HttpContext.Items["UserType"].ToInt();
+            int UserId = HttpContext.Items["ChatId"].ToInt();
+            
+            SqlParameter[] parameters = new SqlParameter[]
+            {
+                new SqlParameter("UserId",UserId)
+            };
+            DataTable dt_users = cp.select_row("API_ChatGetInfoUser", parameters);
+            if (cls_public.sqlError.success == false)
+            {
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), cls_public.sqlError.message);
+            }
+            if (dt_users.Rows.Count > 0)
+            {
+                foreach (DataRow row in dt_users.Rows)
+                {
+                    user = new chatUserInfoResponseModel()
+                    {
+                        id = row["us_id"].ToInt(),
+                        Name = row["FullName"].ToString(),
+                        phone = row["phone"].ToString(),
+                        email = row["email"].ToString(),
+                        avatar = ImageConverter(string.IsNullOrEmpty(row["avatar"].ToString()) ? null : (byte[])row["avatar"], UserId + ".jpg"),
                         bio = row["us_bio"].ToString(),
                         unReadCount = row["us_unreadCount"].ToInt(),
                         lastseen = string.IsNullOrEmpty(row["us_lastSeen"].ToString()) ? null : Convert.ToDateTime(row["us_lastSeen"].ToString()),
@@ -357,8 +431,8 @@ namespace sigma_api.Controllers
             response_messages = new chatMessagesResponseModelView(messages);
             return JsonConvert.SerializeObject(response_messages);
         }
-        
-        
+
+
         [Authorize]
         [HttpPut]
         [Route("api/[controller]/Messages/{messageid?}/read")]
@@ -534,7 +608,6 @@ namespace sigma_api.Controllers
 
         public IActionResult DownloadFile(int? messageid)
         {
-
             if (messageid == null || messageid < 0)
             {
                 return NotFound(messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "MessageId ارائه نشده است."));

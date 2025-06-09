@@ -14,7 +14,7 @@ namespace sigma_api.Models
         public int unReadCount { get; set; }
         public string email { get; set; }
         public string phone { get; set; }
-        public string avatar { get; set; }
+        public string? avatar { get; set; }
         public string bio { get; set; }
         public int status { get; set; }
         public string statusName { get; set; }

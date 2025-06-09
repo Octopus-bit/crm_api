@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
@@ -78,6 +79,7 @@ namespace sigma_api
                 .AddScheme<AuthenticationSchemeOptions, GuidAuthenticationHandler>("Authentication", null);
 
             services.AddAuthorization();
+
         }
 
 
@@ -92,6 +94,12 @@ namespace sigma_api
             //}
 
             app.UseHttpsRedirection();
+            var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            if (!Directory.Exists(webRootPath))
+            {
+                Directory.CreateDirectory(webRootPath);
+            }
+            app.UseStaticFiles();
 
             app.UseRouting();
             app.UseAuthentication();

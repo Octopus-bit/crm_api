@@ -5,11 +5,14 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Newtonsoft.Json;
+using sigma_api.classes;
 using sigma_api.Classes;
 using sigma_api.Models;
 using sigma_api.ModelView;
@@ -22,6 +25,36 @@ namespace sigma_api.Controllers
         private cls_public cp = new cls_public();
         private generalInfoCustomerResponseModelView response_InfoCustomer;
         private generalSystemSettingsResponseModelView response_SystemSettings;
+
+        private readonly IWebHostEnvironment _env;
+
+        public GeneralController(IWebHostEnvironment env)
+        {
+            _env = env;
+        }
+        public string ImageConverter(byte[] file, string filename)
+        {
+            string folderPath = Path.Combine(_env.WebRootPath == null ? _env.ContentRootPath : _env.WebRootPath, "images");
+
+            if (!Directory.Exists(folderPath))
+                Directory.CreateDirectory(folderPath);
+
+            string filePath = Path.Combine(folderPath, filename);
+            string imageUrl = null;
+            if (file != null)
+                if (file.Length > 0)
+                {
+
+                    if (!System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.WriteAllBytes(filePath, file);
+                    }
+
+                    imageUrl = $"{Request.Scheme}://{Request.Host}/images/{filename}";
+                }
+
+            return imageUrl;
+        }
 
         [Authorize]
         [HttpGet]
@@ -36,7 +69,7 @@ namespace sigma_api.Controllers
                 mes.message = "not found mobile";
                 return JsonConvert.SerializeObject(mes);
             }
-            if(mobile.StartsWith("98") || mobile.StartsWith("+98") || mobile.StartsWith("09"))
+            if (mobile.StartsWith("98") || mobile.StartsWith("+98") || mobile.StartsWith("09"))
             {
                 if (mobile.StartsWith("98"))
                 {
@@ -94,15 +127,14 @@ namespace sigma_api.Controllers
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/System-settings")]
-        public string System()
+        public string SystemInfo()
         {
             try
             {
-
                 generalSystemSettingsResponseModel system = new generalSystemSettingsResponseModel()
                 {
                     Company = clsProperties.GetPropertise("txtnameforoshgah").ToString(),
-                    Logo = clsProperties.GetPropertise("logo").ToString(),
+                    Logo = ImageConverter((byte[])clsProperties.GetPropertise("logo"), "logo.png"),
                     Version = typeof(Program).Assembly.GetName().Version?.ToString(),
                     Column_Unit2 = clsProperties.GetPropertise("SubunitQuotation").ToBoolean(),
                     ExpirationQuotations = clsProperties.GetPropertise("expireddayQuotation").ToInt(),
@@ -118,7 +150,7 @@ namespace sigma_api.Controllers
 
             return JsonConvert.SerializeObject(response_SystemSettings);
         }
-        
+
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/IsAuthorized")]
