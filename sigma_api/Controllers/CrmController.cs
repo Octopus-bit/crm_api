@@ -25,6 +25,7 @@ namespace sigma_api.Controllers
         generalInfoCustomerResponseModelView response_InfoCustomer;
         crmBillResponseModelView response_bill;
         crmCycleRefferingResponseModelView response_Cycle;
+        private crmDashboardResponseModelView response_dashboard;
 
         [HttpPost]
         [Route("api/[controller]/login")]
@@ -103,6 +104,90 @@ namespace sigma_api.Controllers
         public string signup()
         {
             return "";
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/dashboard")]
+        public string GetStatusPortal()
+        {
+            messagebase mes = new messagebase();
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            SqlParameter[] parameters =
+            {
+                new SqlParameter("CustomerId", UserId),
+            };
+            DataTable dt_sales = cp.select_row("API_Sales6Month", parameters);
+            List<crmDashboardResponseModel.clsSales> Sales = new List<crmDashboardResponseModel.clsSales>();
+            if (dt_sales.Rows.Count > 0)
+            {
+                foreach (DataRow row in dt_sales.Rows)
+                {
+                    Sales.Add(new crmDashboardResponseModel.clsSales()
+                    {
+                        date = row["PersianMonth"].ToString(),
+                        value = row["TotalSales"].ToDecimal()
+                    });
+                }
+            }
+
+            SqlParameter[] parameters1 =
+            {
+                new SqlParameter("CustomerId", UserId),
+            };
+            DataTable dt_ComparisonSales = cp.select_row("API_ComparisonSales6Month", parameters1);
+            List<crmDashboardResponseModel.clsSales> ComparisonSales = new List<crmDashboardResponseModel.clsSales>();
+            if (dt_ComparisonSales.Rows.Count > 0)
+            {
+                foreach (DataRow row in dt_ComparisonSales.Rows)
+                {
+                    ComparisonSales.Add(new crmDashboardResponseModel.clsSales()
+                    {
+                        date = row["PersianMonth"].ToString(),
+                        value = row["TotalSales"].ToDecimal()
+                    });
+                }
+            }
+            SqlParameter[] parameters2 =
+            {
+                new SqlParameter("CustomerId", UserId),
+            };
+            DataTable dt_stats = cp.select_row("API_GetStatusPortal", parameters2);
+            crmDashboardResponseModel.clsStatsValues invoice = new crmDashboardResponseModel.clsStatsValues();
+            crmDashboardResponseModel.clsStatsValues quotation = new crmDashboardResponseModel.clsStatsValues();
+            crmDashboardResponseModel.clsStats Stats = new crmDashboardResponseModel.clsStats();
+
+            if (dt_stats.Rows.Count > 0)
+            {
+                invoice = new crmDashboardResponseModel.clsStatsValues()
+                {
+                    total = dt_stats.Rows[0]["INV_all"].ToInt(),
+                    approved = dt_stats.Rows[0]["INV_confrim"].ToInt(),
+                    cancelled = dt_stats.Rows[0]["INV_ebtal"].ToInt(),
+                    pending = dt_stats.Rows[0]["INV_inProgress"].ToInt()
+                };
+                quotation = new crmDashboardResponseModel.clsStatsValues()
+                {
+                    total = dt_stats.Rows[0]["QU_all"].ToInt(),
+                    approved = dt_stats.Rows[0]["QU_confrim"].ToInt(),
+                    cancelled = dt_stats.Rows[0]["QU_ebtal"].ToInt(),
+                    pending = dt_stats.Rows[0]["QU_inProgress"].ToInt()
+                };
+                Stats = new crmDashboardResponseModel.clsStats()
+                {
+                    invoice = invoice,
+                    quotation = quotation
+                };
+            }
+
+            crmDashboardResponseModel res = new crmDashboardResponseModel()
+            {
+                ComparisonSalesChart = ComparisonSales,
+                SalesChart = Sales,
+                Stats = Stats
+            };
+            response_dashboard = new crmDashboardResponseModelView(res);
+            return JsonConvert.SerializeObject(response_dashboard);
         }
 
         [Authorize]
@@ -816,7 +901,7 @@ namespace sigma_api.Controllers
 
         [Authorize]
         [HttpGet]
-        [Route("api/[controller]/bill")]
+        [Route("api/[controller]/bill")] // صورت حساب مشتری
         public string GetBill([FromQuery] ListRequest request)
         {
             if (request.page_number < 1)
