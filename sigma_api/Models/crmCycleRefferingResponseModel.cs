@@ -16,5 +16,6 @@ namespace sigma_api.Models
         public string Approver { get; set; } // تایید کننده
         public DateTime? ConfirmDate { get; set; } // زمان تایید
         public bool Valid_id { get; set; } // شناسه وضعیت اعتبار
+        public bool last_cycle { get; set; }
     }
 }

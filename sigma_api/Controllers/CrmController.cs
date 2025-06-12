@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,7 +12,9 @@ using sigma_api.Classes;
 using sigma_api.Security;
 using System.Data;
 using System.Data.SqlClient;
+using System.IO;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 
 namespace sigma_api.Controllers
 {
@@ -25,7 +28,45 @@ namespace sigma_api.Controllers
         generalInfoCustomerResponseModelView response_InfoCustomer;
         crmBillResponseModelView response_bill;
         crmCycleRefferingResponseModelView response_Cycle;
-        private crmDashboardResponseModelView response_dashboard;
+        crmDashboardResponseModelView response_dashboard;
+
+        private readonly IWebHostEnvironment _env;
+        public CrmController(IWebHostEnvironment env)
+        {
+            _env = env;
+        }
+        public string ImageConverter(byte[] file, string filename)
+        {
+            try
+            {
+
+                string folderPath = Path.Combine(_env.WebRootPath == null ? _env.ContentRootPath : _env.WebRootPath, "images-item");
+
+                if (!Directory.Exists(folderPath))
+                    Directory.CreateDirectory(folderPath);
+
+                string filePath = Path.Combine(folderPath, filename);
+                string imageUrl = null;
+                if (file != null)
+                    if (file.Length > 0)
+                    {
+
+                        if (!System.IO.File.Exists(filePath))
+                        {
+                            System.IO.File.WriteAllBytes(filePath, file);
+                        }
+
+                        imageUrl = $"{Request.Scheme}://{Request.Host}/images-item/{filename}";
+                    }
+
+                return imageUrl;
+
+            }
+            catch (Exception e)
+            {
+                return null;
+            }
+        }
 
         [HttpPost]
         [Route("api/[controller]/login")]
@@ -413,7 +454,7 @@ namespace sigma_api.Controllers
                         Supplier = row["Supplier"].ToString(),
                         IS_GroupStock = row["IS_GroupStock"].ToInt(),
                         GRS_GroupName = row["GRS_GroupName"].ToString(),
-                        Image = row["Image"].ToString(),
+                        Image = ImageConverter(string.IsNullOrEmpty(row["Image"].ToString()) ? null : (byte[])row["Image"], row["IS_id"].ToInt() + ".jpg"),
                     });
                 }
 
@@ -483,7 +524,7 @@ namespace sigma_api.Controllers
                     Supplier = dt_items.Rows[0]["Supplier"].ToString(),
                     IS_GroupStock = dt_items.Rows[0]["IS_GroupStock"].ToInt(),
                     GRS_GroupName = dt_items.Rows[0]["GRS_GroupName"].ToString(),
-                    Image = dt_items.Rows[0]["Image"].ToString(),
+                    Image = ImageConverter(string.IsNullOrEmpty(dt_items.Rows[0]["Image"].ToString()) ? null : (byte[])dt_items.Rows[0]["Image"], dt_items.Rows[0]["IS_id"].ToInt() + ".jpg"),
                 };
             }
             response_items = new crmItemListResponseModelView(ItemInfo);
@@ -874,6 +915,7 @@ namespace sigma_api.Controllers
             {
                 if (dt_cycle.Rows.Count > 0)
                 {
+                    int i = 1;
                     foreach (DataRow row in dt_cycle.Rows)
                     {
                         cycle.Add(new crmCycleRefferingResponseModel()
@@ -887,9 +929,10 @@ namespace sigma_api.Controllers
                             Approver = row["confier"].ToString(),
                             ConfirmDate = string.IsNullOrEmpty(row["RFF_confirmdate"].ToString()) ? null : Convert.ToDateTime(row["RFF_confirmdate"].ToString()),
                             Valid_id = row["RFF_Valid"].ToBoolean(),
+                            last_cycle = i == dt_cycle.Rows.Count ? true : false
                         });
 
-
+                        i++;
                     }
 
                 }

@@ -33,7 +33,7 @@ namespace sigma_api.Controllers
         }
         public string ImageConverter(byte[] file, string filename)
         {
-            string folderPath = Path.Combine(_env.WebRootPath == null ? _env.ContentRootPath : _env.WebRootPath, "images");
+            string folderPath = Path.Combine(_env.WebRootPath == null ? _env.ContentRootPath : _env.WebRootPath, "images-user");
 
             if (!Directory.Exists(folderPath))
                 Directory.CreateDirectory(folderPath);
@@ -49,7 +49,7 @@ namespace sigma_api.Controllers
                         System.IO.File.WriteAllBytes(filePath, file);
                     }
 
-                    imageUrl = $"{Request.Scheme}://{Request.Host}/images/{filename}";
+                    imageUrl = $"{Request.Scheme}://{Request.Host}/images-user/{filename}";
                 }
 
             return imageUrl;
