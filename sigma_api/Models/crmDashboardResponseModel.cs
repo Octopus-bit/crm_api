@@ -10,6 +10,7 @@ namespace sigma_api.Models
         public List<clsSales> SalesChart { get; set; }
         public List<clsSales> ComparisonSalesChart { get; set; }
         public clsStats Stats { get; set; }
+        public clsSidebar Sidebar { get; set; }
         public class clsStats
         {
             public clsStatsValues invoice { get; set; }
@@ -29,6 +30,10 @@ namespace sigma_api.Models
             public int approved { get; set; }
             public int cancelled { get; set; }
             public int pending { get; set; }
+        }
+        public class clsSidebar
+        {
+            public int UnReadMessages { get; set; }
         }
     }
 }

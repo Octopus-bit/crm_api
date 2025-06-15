@@ -172,7 +172,7 @@ namespace sigma_api.Controllers
             chatUserInfoResponseModel user = new chatUserInfoResponseModel();
             int type = HttpContext.Items["UserType"].ToInt();
             int UserId = HttpContext.Items["ChatId"].ToInt();
-            
+
             SqlParameter[] parameters = new SqlParameter[]
             {
                 new SqlParameter("UserId",UserId)
@@ -483,6 +483,10 @@ namespace sigma_api.Controllers
                 {
                     return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "FormId ارائه نشده است.");
                 }
+                if (request.CycleUser < 0)
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "CycleUser ارائه نشده است.");
+                }
             }
             catch
             {
@@ -498,6 +502,7 @@ namespace sigma_api.Controllers
                 new SqlParameter("@Text", string.IsNullOrEmpty(request.Text) ? DBNull.Value : request.Text),
                 new SqlParameter("@FormName", string.IsNullOrEmpty(request.FormName) ? DBNull.Value : request.FormName),
                 new SqlParameter("@FormId", request.FormId),
+                new SqlParameter("@CycleUser", request.CycleUser),
             };
             int mes_id = cp.insert_getid("API_ChatCreateMessage", parameters).ToInt();
             if (cls_public.sqlError.success == false)

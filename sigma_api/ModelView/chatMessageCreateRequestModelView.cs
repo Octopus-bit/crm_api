@@ -12,5 +12,6 @@ namespace sigma_api.ModelView
         public string Text { get; set; }
         public string FormName { get; set; } = null;
         public int FormId { get; set; } = 0;
+        public int CycleUser { get; set; } = 0;
     }
 }

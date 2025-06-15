@@ -154,6 +154,7 @@ namespace sigma_api.Controllers
         {
             messagebase mes = new messagebase();
             int UserId = HttpContext.Items["UserId"].ToInt();
+            int ChatId = HttpContext.Items["ChatId"].ToInt();
             SqlParameter[] parameters =
             {
                 new SqlParameter("CustomerId", UserId),
@@ -194,8 +195,15 @@ namespace sigma_api.Controllers
                 new SqlParameter("CustomerId", UserId),
             };
             DataTable dt_stats = cp.select_row("API_GetStatusPortal", parameters2);
+            
+            SqlParameter[] parameters3 =
+            {
+                new SqlParameter("UserId", ChatId),
+            };
+            DataTable dt_InfoUserChat = cp.select_row("API_ChatGetInfoUser", parameters3);
             crmDashboardResponseModel.clsStatsValues invoice = new crmDashboardResponseModel.clsStatsValues();
             crmDashboardResponseModel.clsStatsValues quotation = new crmDashboardResponseModel.clsStatsValues();
+            crmDashboardResponseModel.clsSidebar sidebar = new crmDashboardResponseModel.clsSidebar();
             crmDashboardResponseModel.clsStats Stats = new crmDashboardResponseModel.clsStats();
 
             if (dt_stats.Rows.Count > 0)
@@ -221,11 +229,20 @@ namespace sigma_api.Controllers
                 };
             }
 
+            if (dt_InfoUserChat.Rows.Count > 0)
+            {
+                sidebar = new crmDashboardResponseModel.clsSidebar()
+                {
+                    UnReadMessages = dt_InfoUserChat.Rows[0]["us_unreadCount"].ToInt()
+                };
+            }
+
             crmDashboardResponseModel res = new crmDashboardResponseModel()
             {
                 ComparisonSalesChart = ComparisonSales,
                 SalesChart = Sales,
-                Stats = Stats
+                Stats = Stats,
+                Sidebar = sidebar
             };
             response_dashboard = new crmDashboardResponseModelView(res);
             return JsonConvert.SerializeObject(response_dashboard);
