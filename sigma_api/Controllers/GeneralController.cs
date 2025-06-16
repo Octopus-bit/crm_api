@@ -131,13 +131,28 @@ namespace sigma_api.Controllers
         {
             try
             {
+                int ChatId = HttpContext.Items["ChatId"].ToInt();
+                SqlParameter[] parameters3 =
+                {
+                    new SqlParameter("UserId", ChatId),
+                };
+                DataTable dt_InfoUserChat = cp.select_row("API_ChatGetInfoUser", parameters3);
+                generalSystemSettingsResponseModel.clsSidebar sidebar = new generalSystemSettingsResponseModel.clsSidebar();
+                if (dt_InfoUserChat.Rows.Count > 0)
+                {
+                    sidebar = new generalSystemSettingsResponseModel.clsSidebar()
+                    {
+                        UnReadMessages = dt_InfoUserChat.Rows[0]["us_unreadCount"].ToInt()
+                    };
+                }
                 generalSystemSettingsResponseModel system = new generalSystemSettingsResponseModel()
                 {
                     Company = clsProperties.GetPropertise("txtnameforoshgah").ToString(),
-                    Logo = ImageConverter((byte[])clsProperties.GetPropertise("logo"), "logo.png"),
+                    Logo = ImageConverter(string.IsNullOrEmpty(clsProperties.GetPropertise("logo").ToString())?null:(byte[])clsProperties.GetPropertise("logo"), "logo.png"),
                     Version = typeof(Program).Assembly.GetName().Version?.ToString(),
                     Column_Unit2 = clsProperties.GetPropertise("SubunitQuotation").ToBoolean(),
                     ExpirationQuotations = clsProperties.GetPropertise("expireddayQuotation").ToInt(),
+                    Sidebar = sidebar
                 };
                 response_SystemSettings = new generalSystemSettingsResponseModelView(system);
 

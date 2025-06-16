@@ -29,6 +29,7 @@ namespace sigma_api.Controllers
         crmBillResponseModelView response_bill;
         crmCycleRefferingResponseModelView response_Cycle;
         crmDashboardResponseModelView response_dashboard;
+        crmCityResponseModelView response_City;
 
         private readonly IWebHostEnvironment _env;
         public CrmController(IWebHostEnvironment env)
@@ -154,7 +155,7 @@ namespace sigma_api.Controllers
         {
             messagebase mes = new messagebase();
             int UserId = HttpContext.Items["UserId"].ToInt();
-            int ChatId = HttpContext.Items["ChatId"].ToInt();
+            
             SqlParameter[] parameters =
             {
                 new SqlParameter("CustomerId", UserId),
@@ -196,14 +197,9 @@ namespace sigma_api.Controllers
             };
             DataTable dt_stats = cp.select_row("API_GetStatusPortal", parameters2);
             
-            SqlParameter[] parameters3 =
-            {
-                new SqlParameter("UserId", ChatId),
-            };
-            DataTable dt_InfoUserChat = cp.select_row("API_ChatGetInfoUser", parameters3);
+
             crmDashboardResponseModel.clsStatsValues invoice = new crmDashboardResponseModel.clsStatsValues();
             crmDashboardResponseModel.clsStatsValues quotation = new crmDashboardResponseModel.clsStatsValues();
-            crmDashboardResponseModel.clsSidebar sidebar = new crmDashboardResponseModel.clsSidebar();
             crmDashboardResponseModel.clsStats Stats = new crmDashboardResponseModel.clsStats();
 
             if (dt_stats.Rows.Count > 0)
@@ -229,20 +225,13 @@ namespace sigma_api.Controllers
                 };
             }
 
-            if (dt_InfoUserChat.Rows.Count > 0)
-            {
-                sidebar = new crmDashboardResponseModel.clsSidebar()
-                {
-                    UnReadMessages = dt_InfoUserChat.Rows[0]["us_unreadCount"].ToInt()
-                };
-            }
+
 
             crmDashboardResponseModel res = new crmDashboardResponseModel()
             {
                 ComparisonSalesChart = ComparisonSales,
                 SalesChart = Sales,
                 Stats = Stats,
-                Sidebar = sidebar
             };
             response_dashboard = new crmDashboardResponseModelView(res);
             return JsonConvert.SerializeObject(response_dashboard);
@@ -396,6 +385,41 @@ namespace sigma_api.Controllers
             return JsonConvert.SerializeObject(m);
         }
 
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/Citys")]
+        public string CityList()
+        {
+            messagebase m = new messagebase();
+            DataTable dt_city = new DataTable();
+            List<crmCityResponseModel> citys = new List<crmCityResponseModel>();
+            dt_city = cp.select_command(
+                $"SELECT LocationId,Title FROM {clsProperties.GetPropertise("DataMali").ToString()}.GNR.Location WHERE Type = 3");
+            if (cls_public.sqlError.success == false)
+            {
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "DBO_Unavailable");
+            }
+            if (dt_city.Rows.Count <= 0)
+            {
+                if (cls_public.sqlError.message != null)
+                    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "DBO_Error");
+            }
+            else
+            {
+                foreach (DataRow row in dt_city.Rows)
+                {
+                    citys.Add(new crmCityResponseModel()
+                    {
+                        Id = row["LocationId"].ToInt(),
+                        Title = row["Title"].ToString()
+                    });
+                }
+
+            }
+            response_City = new crmCityResponseModelView(citys);
+            return JsonConvert.SerializeObject(response_City);
+        }
+        
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/Items")]

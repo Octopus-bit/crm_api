@@ -12,5 +12,11 @@ namespace sigma_api.Models
         public string Version { get; set; }
         public int ExpirationQuotations { get; set; }
         public bool Column_Unit2 { get; set; }
+
+        public clsSidebar Sidebar { get; set; }
+        public class clsSidebar
+        {
+            public int UnReadMessages { get; set; }
+        }
     }
 }
