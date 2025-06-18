@@ -9,8 +9,8 @@ namespace sigma_api.ModelView
 {
     public class crmCityResponseModelView : messagebase
     {
-        public List<crmCityResponseModel> results { get; set; }
-        public crmCityResponseModelView(List<crmCityResponseModel> response)
+        public object results { get; set; }
+        public crmCityResponseModelView(ListResponse response)
         {
             success = true;
             code = ErrorCode.Send.GetHashCode();

@@ -155,7 +155,7 @@ namespace sigma_api.Controllers
         {
             messagebase mes = new messagebase();
             int UserId = HttpContext.Items["UserId"].ToInt();
-            
+
             SqlParameter[] parameters =
             {
                 new SqlParameter("CustomerId", UserId),
@@ -196,7 +196,7 @@ namespace sigma_api.Controllers
                 new SqlParameter("CustomerId", UserId),
             };
             DataTable dt_stats = cp.select_row("API_GetStatusPortal", parameters2);
-            
+
 
             crmDashboardResponseModel.clsStatsValues invoice = new crmDashboardResponseModel.clsStatsValues();
             crmDashboardResponseModel.clsStatsValues quotation = new crmDashboardResponseModel.clsStatsValues();
@@ -388,10 +388,23 @@ namespace sigma_api.Controllers
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/Citys")]
-        public string CityList()
+        public string CityList([FromQuery] ListRequest request)
         {
+            try
+            {
+                if (request.page_number < 1)
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
+                }
+            }
+            catch
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "Method not allowed");
+            }
             messagebase m = new messagebase();
             DataTable dt_city = new DataTable();
+            int Pages = 1;
+            ListResponse list = new ListResponse();
             List<crmCityResponseModel> citys = new List<crmCityResponseModel>();
             dt_city = cp.select_command(
                 $"SELECT LocationId,Title FROM {clsProperties.GetPropertise("DataMali").ToString()}.GNR.Location WHERE Type = 3");
@@ -406,6 +419,14 @@ namespace sigma_api.Controllers
             }
             else
             {
+                Pages = dt_city.Rows.Count / 100;
+                if (Pages < 1)
+                    Pages = 1;
+                if (dt_city.Rows.Count > 100)
+                {
+                    dt_city = dt_city.AsEnumerable().Skip((request.page_number - 1) * 100).CopyToDataTable();
+                    dt_city = dt_city.AsEnumerable().Take(100).CopyToDataTable();
+                }
                 foreach (DataRow row in dt_city.Rows)
                 {
                     citys.Add(new crmCityResponseModel()
@@ -414,12 +435,18 @@ namespace sigma_api.Controllers
                         Title = row["Title"].ToString()
                     });
                 }
+                list = new ListResponse()
+                {
+                    Pages = Pages,
+                    Page_row = request.page_number,
+                    List = citys
+                };
 
             }
-            response_City = new crmCityResponseModelView(citys);
+            response_City = new crmCityResponseModelView(citys.Count <= 0 ? null : list);
             return JsonConvert.SerializeObject(response_City);
         }
-        
+
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/Items")]
