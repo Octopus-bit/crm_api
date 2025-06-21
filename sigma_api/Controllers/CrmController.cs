@@ -991,7 +991,7 @@ namespace sigma_api.Controllers
                             SendDate = string.IsNullOrEmpty(row["RFF_Senddate"].ToString()) ? null : Convert.ToDateTime(row["RFF_Senddate"]),
                             Sender = row["sender"].ToString(),
                             Reciever = row["reciever"].ToString(),
-                            Subject = row["RFF_Subject"].ToString(),
+                            Subject = clsProperties.GetPropertise("Web_ShowSubjectCycle").ToBoolean() ? row["RFF_Subject"].ToString() : null,
                             Summary = row["RFF_Summary"].ToString(),
                             ShowDate = Convert.ToDateTime(row["RFF_Showdate"]),
                             Approver = row["confier"].ToString(),
@@ -1020,6 +1020,17 @@ namespace sigma_api.Controllers
                 return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
             }
             int UserId = HttpContext.Items["UserId"].ToInt();
+            bool ShowBillTurnovers = false;
+            SqlParameter[] parameters_user =
+            {
+                new SqlParameter("CustomerId", UserId),
+            };
+            DataTable dt_InfoCustomer = cp.select_row("API_GetCustomerInfoById", parameters_user);
+            if (dt_InfoCustomer.Rows.Count > 0)
+            {
+                ShowBillTurnovers = dt_InfoCustomer.Rows[0]["BillTurnovers"].ToBoolean();
+            }
+
             int Pages = 1;
             try
             {
@@ -1091,8 +1102,11 @@ having DLRef=5967
                         CreditBalance = dtmoror.Rows[0]["CreditBalance"].ToDecimal()
 
                     };
+                    List<crmBillResponseModel.turnover> turnover = new List<crmBillResponseModel.turnover>();
+                    if (ShowBillTurnovers)
+                    {
 
-                    text = @"SELECT   [RowNumber] ,[VoucherDate] ,[Description] ,[Debit] ,[Credit]
+                        text = @"SELECT   [RowNumber] ,[VoucherDate] ,[Description] ,[Debit] ,[Credit]
 FROM " + DataMali + @".ACC.[vwVoucherItem] vi
 LEFT JOIN (SELECT    g.VoucherRef   ,g1.Number   ,g1.FromVoucherNumber   ,g1.ToVoucherNumber
   FROM " + DataMali + @".ACC.vwGLVoucher g1
@@ -1104,42 +1118,49 @@ WHERE
 AND (VoucherDate <= @ToDate)
 AND ((VoucherType IN (1, 2, 6)) OR (VoucherType = N'5' AND VoucherDate <= @LastDayOfFirstYear) OR (VoucherType = N'-1' AND VoucherDate >= @FirstDayOfLastYear) OR (VoucherType = N'-1'))
 AND DLRef=5967";
-                    SqlParameter[] parameters2 = new SqlParameter[]
-                    {
-                new SqlParameter("@FromDate",ShamsiDate.Shamsi2Miladi("1403/01/01")/*DTNOW*/ ),
-                new SqlParameter("@ToDate", ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/),
-                new SqlParameter("@LastDayOfFirstYear",ShamsiDate.Shamsi2Miladi( "1403/01/01")/*DTNOW*/),
-                new SqlParameter("@FirstDayOfLastYear",ShamsiDate.Shamsi2Miladi("1403/12/29")/*DTNOW2*/ ),
-                    };
-                    DataTable dt_ditales = cp.select_command(text, parameters2);
-                    Pages = dt_ditales.Rows.Count / 15;
-                    if (Pages < 1)
-                        Pages = 1;
-                    if (dt_ditales.Rows.Count > 15)
-                    {
-                        dt_ditales = dt_ditales.AsEnumerable().Skip((request.page_number - 1) * 15).CopyToDataTable();
-                        dt_ditales = dt_ditales.AsEnumerable().Take(15).CopyToDataTable();
-                    }
-                    List<crmBillResponseModel.turnover> turnover = new List<crmBillResponseModel.turnover>();
-                    foreach (DataRow row in dt_ditales.Rows)
-                    {
-                        turnover.Add(new crmBillResponseModel.turnover()
+                        SqlParameter[] parameters2 = new SqlParameter[]
                         {
-                            Row = row["RowNumber"].ToInt(),
-                            Date = row["VoucherDate"].ToString(),
-                            Description = row["Description"].ToString(),
-                            Debit = row["Debit"].ToDecimal(),
-                            Credit = row["Credit"].ToDecimal(),
-                            Remaining = row["Debit"].ToDecimal() - row["Credit"].ToDecimal()
-                        });
-                    }
+                            new SqlParameter("@FromDate", ShamsiDate.Shamsi2Miladi("1403/01/01") /*DTNOW*/),
+                            new SqlParameter("@ToDate", ShamsiDate.Shamsi2Miladi("1403/12/29") /*DTNOW2*/),
+                            new SqlParameter("@LastDayOfFirstYear", ShamsiDate.Shamsi2Miladi("1403/01/01") /*DTNOW*/),
+                            new SqlParameter("@FirstDayOfLastYear", ShamsiDate.Shamsi2Miladi("1403/12/29") /*DTNOW2*/),
+                        };
+                        DataTable dt_ditales = cp.select_command(text, parameters2);
+                        Pages = dt_ditales.Rows.Count / 15;
+                        if (Pages < 1)
+                            Pages = 1;
+                        if (dt_ditales.Rows.Count > 15)
+                        {
+                            dt_ditales = dt_ditales.AsEnumerable().Skip((request.page_number - 1) * 15)
+                                .CopyToDataTable();
+                            dt_ditales = dt_ditales.AsEnumerable().Take(15).CopyToDataTable();
+                        }
 
-                    header.Turnovers = new ListResponse()
+
+                        foreach (DataRow row in dt_ditales.Rows)
+                        {
+                            turnover.Add(new crmBillResponseModel.turnover()
+                            {
+                                Row = row["RowNumber"].ToInt(),
+                                Date = row["VoucherDate"].ToString(),
+                                Description = row["Description"].ToString(),
+                                Debit = row["Debit"].ToDecimal(),
+                                Credit = row["Credit"].ToDecimal(),
+                                Remaining = row["Debit"].ToDecimal() - row["Credit"].ToDecimal()
+                            });
+                        }
+
+                        header.Turnovers = new ListResponse()
+                        {
+                            Pages = Pages,
+                            Page_row = request.page_number,
+                            List = turnover
+                        };
+                    }
+                    else
                     {
-                        Pages = Pages,
-                        Page_row = request.page_number,
-                        List = turnover
-                    };
+                        header.Turnovers = null;
+                    }
                     response_bill = new crmBillResponseModelView(header);
                 }
                 else
