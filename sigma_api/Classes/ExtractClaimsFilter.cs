@@ -3,7 +3,7 @@ using System.Security.Claims;
 
 public class ExtractClaimsFilter : IActionFilter
 {
-    public void OnActionExecuting(ActionExecutingContext context)
+    public void OnActionExecuting(ActionExecutingContext context) // این قسمت برای دریافت داده های کاربر پس از ارسال توکن
     {
         var user = context.HttpContext.User;
 

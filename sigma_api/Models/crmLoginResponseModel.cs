@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class crmLoginResponseModel
+    public class crmLoginResponseModel // اطلاعات کاربر لاگین شده
     {
         public string id { get; set; }
         public string Type { get; set; }

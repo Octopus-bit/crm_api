@@ -8,6 +8,7 @@ using System.Text;
 using Newtonsoft.Json;
 namespace sigma_api.Classes
 {
+    // کد های بازگشتی برای توسعه دهنده
     public enum ErrorCode : int
     {
         /// <summary>
@@ -55,7 +56,7 @@ namespace sigma_api.Classes
         /// </summary>
         DBO_Unavailable = 301
     }
-
+     // نوع توکن ها
     public enum TypeToken : int
     {
         /// <summary>

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class crmCityResponseModel
+    public class crmCityResponseModel // اطلاعات استان ها
     {
         public int Id { get; set; }
         public string Title { get; set; }

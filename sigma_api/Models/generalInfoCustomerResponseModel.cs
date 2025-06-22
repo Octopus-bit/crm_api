@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class generalInfoCustomerResponseModel
+    public class generalInfoCustomerResponseModel // اطلاعات کاربر بر اساس شماره موبایل
     {
         public int Id { get; set; }
         public string FirstName { get; set; }

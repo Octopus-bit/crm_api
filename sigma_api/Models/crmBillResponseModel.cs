@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class crmBillResponseModel
+    public class crmBillResponseModel // دریافت اطلاعات صورت حساب
     {
         public int Id { get; set; } // dlref
         public int Code { get; set; } // dlcode
@@ -17,7 +17,7 @@ namespace sigma_api.Models
         public decimal CreditBalance { get; set; } // مانده بستانکاری
         public ListResponse Turnovers { get; set; }
 
-        public class turnover
+        public class turnover // دریافت گردش های صورت حساب
         {
             public int Row { get; set; } // ردیف
             public decimal Remaining { get; set; } // باقی مانده 

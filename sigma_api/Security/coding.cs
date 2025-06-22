@@ -49,7 +49,7 @@ namespace sigma_api.Security
             return input.Replace("ي", "ی").Replace("ك", "ک");
         }
 
-        public static string SigmaEncryptString(string strToEncrypt)
+        public static string SigmaEncryptString(string strToEncrypt) // کدینگ سیگما برای پسورد ها و توکن استفاده میشود
         {
             if (string.IsNullOrEmpty(strToEncrypt))
                 return "";

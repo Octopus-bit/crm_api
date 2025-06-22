@@ -28,7 +28,7 @@ namespace sigma_api
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddCors(options =>
+            services.AddCors(options => // بررسی کورس
             {
                 options.AddPolicy("AllowAll", builder =>
                 {
@@ -46,7 +46,7 @@ namespace sigma_api
             });
 
             // Swagger Configuration
-            services.AddSwaggerGen(c =>
+            services.AddSwaggerGen(c => // افزودن احراز هویت به پروژه
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "sigma_api", Version = "v"+ typeof(Program).Assembly.GetName().Version?.ToString() });
 
@@ -94,12 +94,12 @@ namespace sigma_api
             //}
 
             app.UseHttpsRedirection();
-            var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"); // افزودن پوشه روت برای ذخیره تصاویر تا بتوانیم لینک خروجی بدهیم
             if (!Directory.Exists(webRootPath))
             {
                 Directory.CreateDirectory(webRootPath);
             }
-            app.UseStaticFiles();
+            app.UseStaticFiles(); // اجازه دسترسی به فایل ها
 
             app.UseRouting();
             app.UseAuthentication();

@@ -27,7 +27,7 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
     }
 
     private string _errorJson = null!;
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync() // احرازهویت توکن
     {
         if (!Request.Headers.ContainsKey("Token"))
         {
@@ -35,23 +35,22 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
             return Task.FromResult(AuthenticateResult.Fail("Unauthorized"));
         }
 
-        var token = Request.Headers["Token"].ToString();
+        var token = Request.Headers["Token"].ToString(); // خواندن توکن از هدر
 
-        if (!Guid.TryParse(token, out var guid))
+        if (!Guid.TryParse(token, out var guid)) // بررسی توکن از نوع guid
         {
             _errorJson = messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "Invalid Token");
             return Task.FromResult(AuthenticateResult.Fail("Unauthorized"));
         }
 
         DataTable dt_UserInfo = new DataTable();
-        // اینجا می‌تونی مثلا چک کنی که GUID تو دیتابیس معتبر باشه یا نه
         try
         {
-            dt_UserInfo = TokenManagement.ReadToken(token.ToString());
+            dt_UserInfo = TokenManagement.ReadToken(token.ToString()); // اعتبار سنجی توکن از دیتابیس
         }
         catch
         { }
-        if (cls_public.sqlError.success == false)
+        if (cls_public.sqlError.success == false) // شرط اکثرا استفاده شده که بررسی میکنه در صورت قطع شدن ارتباط با دیتابیس پیغام مناسب دهد
         {
             _errorJson = messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(),
                 cls_public.sqlError.message);
@@ -64,7 +63,7 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
         }
 
 
-        //User-Info
+        //User-Info - ذخیره اطلاعات توکن در http
         int UserType = dt_UserInfo.Rows[0]["UserType"].ToInt();
         int UserId = dt_UserInfo.Rows[0]["UserId"].ToInt();
         string FullName = dt_UserInfo.Rows[0]["FullName"].ToString();
@@ -104,7 +103,7 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
 
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),  // این کلایم برای دسترسی به آی‌دی
+            new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),  // این کلایم برای دسترسی به اطلاعات استخراج شده توکن هست
             new Claim(ClaimTypes.Name, FullName),
             new Claim(ClaimTypes.Authentication, token),
             new Claim(ClaimTypes.Role, UserType.ToString()),
@@ -118,7 +117,7 @@ public class GuidAuthenticationHandler : AuthenticationHandler<AuthenticationSch
         return Task.FromResult(AuthenticateResult.Success(ticket));
 
     }
-    protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+    protected override Task HandleChallengeAsync(AuthenticationProperties properties) // این دستور برای مدیریت کد 401 احراز هویت هست تا بجاش کد سفارشی مارا ارسال کند.
     {
         Context.Response.StatusCode = 200; // چون می‌خوایم JSON برگردونیم، نه 401
         //Context.Response.ContentType = "application/json";

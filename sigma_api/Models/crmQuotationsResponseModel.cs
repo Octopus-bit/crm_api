@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class crmQuotationsResponseModel
+    public class crmQuotationsResponseModel // اطلاعات یک پیش فاکتور
     {
         public int QU_id { get; set; } // شناسه پیش فاکتور
         public int QU_no { get; set; } // شماره پیش فاکتور
@@ -31,7 +31,7 @@ namespace sigma_api.Models
         public Cycle CycleStatus { get; set; }
         public Detail[] Details { get; set; }
 
-        public class Cycle
+        public class Cycle // چرخه پیش فاکتور
         {
             public int? RB_id { get; set; }
             public int? RB_status { get; set; }
@@ -42,7 +42,7 @@ namespace sigma_api.Models
             public int? LD_id { get; set; }
             public int? LD_status { get; set; }
         }
-        public class Detail
+        public class Detail // اطلاعات کالای پیش فاکتور
         {
             public int id { get; set; } // شناسه ایتم پیش فاکتور
             public string Code { get; set; } // کد کالا

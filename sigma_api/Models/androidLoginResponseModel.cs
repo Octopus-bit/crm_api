@@ -7,13 +7,13 @@ namespace sigma_api.Models
 {
     public class androidLoginResponseModel
     {
-        public string id { get; set; }
-        public string fullname { get; set; }
-        public data access { get; set; }
+        public string id { get; set; } // شناسه = توکن 
+        public string fullname { get; set; } // نام کامل کاربر
+        public data access { get; set; } // دسترسی های کاربر
         public class data
         {
-            public bool SoundRecord { get; set; }
-            public bool GpsLocation { get; set; }
+            public bool SoundRecord { get; set; } // ثبت وضیحات تماس
+            public bool GpsLocation { get; set; } // ثبت لوکیشن
         }
     }
 }

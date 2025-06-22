@@ -6,17 +6,17 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class chatUserInfoResponseModel
+    public class chatUserInfoResponseModel // دریافت اطلاعات کاربر داخل چت
     {
-        public int id { get; set; }
-        public string Name { get; set; }
-        public DateTime? lastseen  { get; set; }
-        public int unReadCount { get; set; }
-        public string email { get; set; }
-        public string phone { get; set; }
-        public string? avatar { get; set; }
-        public string bio { get; set; }
-        public int status { get; set; }
-        public string statusName { get; set; }
+        public int id { get; set; } // شناسه کاربر چت که از جدول CHAT_Users استفاده میشه این شناسه پس از لاگین به api با تریگر به صورت اتوماتیک ایجاد میشود
+        public string Name { get; set; } // نام کاربر
+        public DateTime? lastseen  { get; set; }// اخرینزمان انلاین بودن
+        public int unReadCount { get; set; } // تعداد پیام خوانده نشده
+        public string email { get; set; } // ایمیل
+        public string phone { get; set; } // شماره تماس
+        public string? avatar { get; set; } // لینک پروفایل کاربر
+        public string bio { get; set; } // بیو کاربر
+        public int status { get; set; } // 0 = offline / 1 = online / 2 = away
+        public string statusName { get; set; } // (وضعیت کاربر (افلاین ، انلاین ، نامشخص
     }
 }

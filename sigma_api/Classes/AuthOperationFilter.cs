@@ -7,9 +7,10 @@ using System.Linq;
 
 public class AuthOperationFilter : IOperationFilter
 {
+
+    // این تابع بررسی میکند تا هر کدام از متد های وب سرویس از احراز هویت استفاده میکنند داخل swagger به صورت قفل شده نمایش دهد
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
-        // اگه روی اکشن یا کنترلر [AllowAnonymous] باشه، قفل نزن
         var hasAllowAnonymous =
             context.MethodInfo.GetCustomAttributes(true).OfType<AllowAnonymousAttribute>().Any() ||
             context.MethodInfo.DeclaringType.GetCustomAttributes(true).OfType<AllowAnonymousAttribute>().Any();
@@ -17,7 +18,7 @@ public class AuthOperationFilter : IOperationFilter
         if (hasAllowAnonymous)
             return;
 
-        // برای بقیه متدها قفل بزن با اسکیم "Token"
+
         operation.Security = new List<OpenApiSecurityRequirement>
         {
             new OpenApiSecurityRequirement
@@ -28,7 +29,7 @@ public class AuthOperationFilter : IOperationFilter
                         Reference = new OpenApiReference
                         {
                             Type = ReferenceType.SecurityScheme,
-                            Id = "Token" // 👈 دقیقاً همون چیزی که تو AddSecurityDefinition استفاده کردی
+                            Id = "Token" 
                         },
                         In = ParameterLocation.Header,
                         Name = "Token"

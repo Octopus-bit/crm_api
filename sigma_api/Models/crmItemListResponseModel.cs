@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class crmItemListResponseModel
+    public class crmItemListResponseModel // اطلاعات کالا
     {
         public int IS_id { get; set; }
         public int StockID { get; set; }

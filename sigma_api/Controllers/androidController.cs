@@ -19,18 +19,19 @@ namespace sigma_api.Controllers
 
     public class androidController : Controller
     {
-
+        // کنترلر های اپلیکیشن اندروید
         cls_public cp = new cls_public();
         androidLoginResponseModelView response_login;
         androidCallResponseModelView response_call;
         androidCallBatchResponseModelView response_callBatch;
 
         [HttpPost]
-        [Route("api/[Controller]/login")]
+        [Route("api/[Controller]/login")] // درخواست ورود
         [AllowAnonymous]
         public string login(androidLoginRequestModelView request)
         {
             string username, password;
+            // بررسی ورودی ها
             if (string.IsNullOrEmpty(request.username))
             {
                 response_login =
@@ -45,13 +46,14 @@ namespace sigma_api.Controllers
                         "کلمه عبور خالی میباشد");
                 return JsonConvert.SerializeObject(response_login);
             }
+            // ----------------------------------
             username = request.username;
-            password = coding.SigmaEncryptString(/*coding.SafeFarsiStr(*/request.password/*)*/);
+            password = coding.SigmaEncryptString(/*coding.SafeFarsiStr(*/request.password/*)*/); // کد کردن پسورد ارسال شده
             SqlParameter[] parameters =
             {
                 new SqlParameter("username",username),
                 new SqlParameter("password",password),
-                new SqlParameter("Type","0")
+                new SqlParameter("Type","0") // ( نوع یوزر 2 دسته دارد ( 0 = کاربر سیستمی / 1 = مشتری های سیستم
             };
             DataTable dt = cp.select_row("API_CheckUser", parameters);
             if (cls_public.sqlError.success == false)
@@ -63,12 +65,12 @@ namespace sigma_api.Controllers
 
                 if (dt.Rows.Count == 1)
                 {
-                    int user_Id = dt.Rows[0]["USR_id"].ToInt();
-                    string user_Name = dt.Rows[0]["Name"].ToString();
-                    bool Status = dt.Rows[0]["USR_type"].ToBoolean();
-                    bool UserMobile = dt.Rows[0]["USR_mobile"].ToBoolean();
-                    bool SoundRecord = dt.Rows[0]["USR_SoundRecord"].ToBoolean();
-                    bool GpsLocation = dt.Rows[0]["USR_GpsLocation"].ToBoolean();
+                    int user_Id = dt.Rows[0]["USR_id"].ToInt(); // ایدی کاربر
+                    string user_Name = dt.Rows[0]["Name"].ToString(); // نام کاربر
+                    bool Status = dt.Rows[0]["USR_type"].ToBoolean(); // وضعیت کاربر فعال یا غیر فعال
+                    bool UserMobile = dt.Rows[0]["USR_mobile"].ToBoolean(); // ایا کاربر دسترسی به اپ موبایل دارد ؟
+                    bool SoundRecord = dt.Rows[0]["USR_SoundRecord"].ToBoolean(); // دسترسی برای ثبت توضیحات پس از تماس
+                    bool GpsLocation = dt.Rows[0]["USR_GpsLocation"].ToBoolean(); // ثبت لوکیشن بر قراری تماس
                     if (Status == false)
                     {
                         response_login = new androidLoginResponseModelView(ErrorCode.NoAccess.GetHashCode(), "حساب کاربری غیرفعال میباشد");

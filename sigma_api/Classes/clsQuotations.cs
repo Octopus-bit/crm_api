@@ -30,7 +30,7 @@ namespace sigma_api.Classes
             {
                 new SqlParameter("TypeSale", TypeSale)
             };
-            int id = cp.insert_getid("API_GetTypePaymentById", parameters, transaction).ToInt();
+            int id = cp.insert_getid("API_GetTypePaymentById", parameters, transaction).ToInt(); // برای دریافت شناسه نوع تسویه از جدول لوکاپ
             return id;
         }
         public int Acsept(DataRow Header, DataTable listItem) // تابع ذخیره سازی و ثبت پیش فاکتور و گرفتن تسویه از مشتری

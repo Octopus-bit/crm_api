@@ -8,10 +8,10 @@ using sigma_api.Classes;
 
 namespace sigma_api.Security
 {
-    public class TokenManagement
+    public class TokenManagement // کلاس احراز توکن
     {
         public static bool IsCreated = false;
-        public static string WriteToken(int UserId, int TypeToken)
+        public static string WriteToken(int UserId, int TypeToken) //این تابع توکن جدیدی برای کاربر ایجاد میکند
         {
             string token = null;
             cls_public cp = new cls_public();
@@ -40,7 +40,7 @@ namespace sigma_api.Security
             return coding.SigmaEncryptString(token);
         }
 
-        public static DataTable ReadToken(string token)
+        public static DataTable ReadToken(string token) // تابع خواندن توکن از دیتابیس و دریافت اطلاعات یوزر مربوط به توکن
         {
             cls_public cp = new cls_public();
 

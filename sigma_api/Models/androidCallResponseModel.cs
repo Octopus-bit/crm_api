@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class androidCallResponseModel
+    public class androidCallResponseModel // اطلاعات برگشتی پس از ثبت تماس تکی
 
     {
         public int id { get; set; }

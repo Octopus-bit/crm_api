@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class androidCallBatchResponseModel
+    public class androidCallBatchResponseModel // اطلاعات بازگشتی پس از ثبت دسته جمعی تماس موبایل
     {
         public int? id { get; set; }
         public string guid { get; set; }

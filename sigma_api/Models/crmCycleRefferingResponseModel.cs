@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace sigma_api.Models
 {
-    public class crmCycleRefferingResponseModel
+    public class crmCycleRefferingResponseModel // اطلاعات بازگشتی از چرخه
     {
         public DateTime? SendDate { get; set; } // تاریخ ثبت
         public string Sender { get; set; } // ارجاع دهنده
