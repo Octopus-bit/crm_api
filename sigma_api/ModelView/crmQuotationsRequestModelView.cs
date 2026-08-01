@@ -7,7 +7,7 @@ using sigma_api.Models;
 
 namespace sigma_api.ModelView
 {
-    public class crmQuotationsRequestModelView
+       public class crmQuotationsRequestModelView
     {
         public DateTime Date { get; set; } // تاریخ
         public string Description { get; set; } // توضیحات

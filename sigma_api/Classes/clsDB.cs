@@ -15,15 +15,30 @@ using System.Net.Http;
 using Newtonsoft.Json;
 using System.Linq;
 using sigma_api.Classes;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using System.Web.Http.Filters;
 
 namespace sigma_api.classes
 {
     public class clsDB
     {
-        private static cls_public cp = new cls_public();
+        [ThreadStatic]
+        private static cls_public _threadCp;
+
+        private static cls_public cp
+        {
+            get
+            {
+                if (_threadCp == null)
+                    _threadCp = new cls_public();
+                return _threadCp;
+            }
+        }
+        private static ShamsiDate cpShamsiDate = new ShamsiDate();
+        //private static cls_public cp = new cls_public();
         private static string DataMali;
         private static int reservesanad;
-        private static string FiscalYearNowStr = cp.GetDateTime().Year.ToString();
+        private static string FiscalYearNowStr = cp. GetDateTime().Year.ToString();
         static List<DataPoint> ListDataPoint = new List<DataPoint>();
 
         static clsDB() 
@@ -36,7 +51,12 @@ namespace sigma_api.classes
             DataMali = clsProperties.GetPropertise("DataMali").ToString();
             reservesanad = clsProperties.GetPropertise("reservesanad").ToInt();
         }
-
+        public static string GetFiscalYearNowStr()
+        {
+            string year = "";
+            year = Classes.ShamsiDate.MiladiToShamsi(cp.GetDateTime().Date).Substring(0, 4);
+            return year;
+        }
         public static string InventorySep(string itemid)
         {
             string InventorySepidar = @",(
@@ -423,233 +443,154 @@ ISNULL((select cast(round(cast(SUM(INS_Out) as decimal(19,4)), 4) as float) from
 
         public static string SelectItem(string tt, string FiscalYearId, string Filter, string cst = null)
         {
-            string PricingTax = ",NULL ";
-            string PricingQ = ",NULL ";
-            if (string.IsNullOrEmpty(saletype))
-                saletype = "0";
-            if (clsProperties.GetPropertise("PricingQ").ToBoolean() & !string.IsNullOrEmpty(saletype))
+            DataTable dtresualt = new DataTable();
+            try
             {
-                //if (FrmMain.ShowPricingTax)
-                //    PricingTax = @",1250.2583";
-                //else
-                //    PricingTax = " ,0 ";
+                DataTable dt = cp.select_command(@"SELECT TNZ_sharh FROM dbo.PRG_Propertise WHERE TNZ_name = 'DefualtTasfiePortal'");
+                DataSet _DS = new DataSet();
+                SqlDataAdapter _DA = new SqlDataAdapter();
+                SqlCommand Command = new SqlCommand("SpSelectItem", cp.connect());
+                try { if (cp.connect().State == System.Data.ConnectionState.Closed) cp.connect().Open(); }
+                catch { }
+                Command.CommandType = CommandType.StoredProcedure;
+                Command.Parameters.Add("@Str1", SqlDbType.NVarChar, 4000).Value = tt;
+                Command.Parameters.Add("@FiscalYearId", SqlDbType.NVarChar, 10).Value = FiscalYearId;
+                Command.Parameters.Add("@Filter", SqlDbType.NVarChar, 4000).Value = Filter;
+                Command.Parameters.Add("@Filter2", SqlDbType.NVarChar, 4000).Value = "";
+                Command.Parameters.Add("@Str2", SqlDbType.NVarChar, 4000).Value = "";
+                Command.Parameters.Add("@Inv", SqlDbType.Bit).Value = 0;
+                Command.Parameters.Add("@saleTypebool", SqlDbType.Bit).Value = 0;
+                Command.Parameters.Add("@saletype", SqlDbType.NVarChar, 4000).Value = dt.Rows[0][0].ToString();
+                Command.Parameters.Add("@OFFSET", SqlDbType.NVarChar, 4000).Value = "";
+                Command.Parameters.Add("@FilterPagingitm", SqlDbType.NVarChar, 4000).Value = "";
+                _DA.SelectCommand = Command;
+                string gg = dt.Rows[0][0].ToString();
+                _DA.Fill(_DS);
+                dtresualt = _DS.Tables[0];
+                try { if (cp.connect().State == System.Data.ConnectionState.Open) cp.connect().Close(); }
+                catch { }
+                string res = dtresualt.Rows[0][0].ToString();
 
-
-                //if (FrmMain.ShowPricingTax)
-                //                    PricingTax = @",(SELECT CAST(( Fee+ ((Fee * itm.ITM_tax))/100)AS DECIMAL(19,0))  FROM " + FrmMain.DataMali + @".SLS.[vwPriceNoteItem]   
-                //   WHERE (([SaleTypeRef] = (select SaleTypeId from " + FrmMain.DataMali + ".SLS.SaleType where Title=REPLACE(REPLACE(CAST('" + saletype + @"' AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) 
-                //or Title=REPLACE(REPLACE(CAST('" + saletype + "' AS nvarchar(MAX)), NCHAR(1740), NCHAR(1610)), NCHAR(1705), NCHAR(1603))) ) AND ([CurrencyRef] = 1) AND ((( 1=2) OR ([TracingRef] IS NULL)) AND ([ItemRef] =itm.ITM_Item_id)) AND (([CustomerGroupingRef] IS NULL)) )) ";
-                //                else
-                //                    PricingTax = " ,0 ";
-                PricingTax = ",(SELECT CAST(( Fee+ ((Fee * itm.ITM_tax)/100))AS DECIMAL(19,0)) FROM " + DataMali +
-                             @".SLS.[vwPriceNoteItem] " +
-                             "WHERE (([SaleTypeRef] = (select SaleTypeId from " + DataMali +
-                             ".SLS.SaleType where Title=REPLACE(REPLACE(CAST('" + saletype +
-                             @"' AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) or 
-Title=REPLACE(REPLACE(CAST('" + saletype +
-                             "' AS nvarchar(MAX)), NCHAR(1740), NCHAR(1610)), NCHAR(1705), NCHAR(1603))) ) AND ([CurrencyRef] = 1) AND ((( 1=2) OR ([TracingRef] IS NULL)) AND ([ItemRef] =itm.ITM_Item_id)) AND (([CustomerGroupingRef] IS NULL)) ))";
-                PricingQ = @",(SELECT [Fee] FROM " + DataMali + @".SLS.[vwPriceNoteItem]   
-   WHERE (([SaleTypeRef] = (select SaleTypeId from " + DataMali + ".SLS.SaleType where Title=REPLACE(REPLACE(CAST('" +
-                           saletype + @"' AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) 
-or Title=REPLACE(REPLACE(CAST('" + saletype +
-                           "' AS nvarchar(MAX)), NCHAR(1740), NCHAR(1610)), NCHAR(1705), NCHAR(1603))) ) AND ([CurrencyRef] = 1) AND ((( 1=2) OR ([TracingRef] IS NULL)) AND ([ItemRef] =itm.ITM_Item_id)) AND (([CustomerGroupingRef] IS NULL)) )) ";
-                saletype = "";
             }
-
-            saletype = "";
-            string TxtShowAdition1_1 = "";
-            string TxtShowAdition1_2 = "";
-            //if (FrmMain.ShowAdition1)
-            //{
-            TxtShowAdition1_1 = ",lkp1.LKP_name TitleItemAdition1,lkp1.LKP_value ValueAddition1 ";
-            TxtShowAdition1_2 = " LEFT JOIN dbo.PRG_Loockup lkp1 on lkp1.LKP_id=itm.ITM_ItemAdition1 ";
-            //}
-            string TxtShowAdition2_1 = "";
-            string TxtShowAdition2_2 = "";
-            //if (FrmMain.ShowAdition2)
-            //{
-            TxtShowAdition2_1 = ",lkp2.LKP_name TitleItemAdition2,lkp1.LKP_value ValueAddition2 ";
-            TxtShowAdition2_2 = " LEFT JOIN dbo.PRG_Loockup lkp2 on lkp2.LKP_id=itm.ITM_ItemAdition2 ";
-            //}
-            string TxtShowPurchaseItem_1 = "";
-            string TxtShowPurchaseItem_2 = "";
-            //if (FrmMain.ShowPurchaseItem)
-            //{
-            TxtShowPurchaseItem_1 =
-                ",REPLACE(REPLACE(CAST(PurchaseGroup.Title AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) TitlePurchaseGroup ";
-            TxtShowPurchaseItem_2 = "  LEFT JOIN " + DataMali +
-                                    @".GNR.Grouping PurchaseGroup ON itm.ITM_PurchaseGroup = PurchaseGroup.GroupingID ";
-            //}
-            string TxtShowSaleItem_1 = "";
-            string TxtShowSaleItem_2 = "";
-            //if (FrmMain.ShowSaleItem)
-            //{
-            TxtShowSaleItem_1 =
-                ",REPLACE(REPLACE(CAST(SaleGroup.Title AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) TitleSaleGroup ";
-            TxtShowSaleItem_2 = "  LEFT JOIN " + DataMali +
-                                @".GNR.Grouping SaleGroup ON itm.ITM_SaleGroup = SaleGroup.GroupingID ";
-            //}
-
-            string defualt = "";
-            if (clsProperties.GetPropertise("ShowtemDefualt").ToBoolean())
+            catch (Exception ex)
             {
-                defualt = " and istk.IS_Default = 1 ";
+                //MessageBox.Show("Selectitem : " + ex.Message);
             }
+            return dtresualt.Rows[0][0].ToString();
+//            string PricingTax = ",NULL ";
+//            string PricingQ = ",NULL ";
+//            if (string.IsNullOrEmpty(saletype))
+//                saletype = "0";
+//            if (clsProperties.GetPropertise("PricingQ").ToBoolean() & !string.IsNullOrEmpty(saletype))
+//            {
+//                //if (FrmMain.ShowPricingTax)
+//                //    PricingTax = @",1250.2583";
+//                //else
+//                //    PricingTax = " ,0 ";
 
-            string reserverd = Stringreserved(FiscalYearId);
-            string Resualt = @"select *,
-case when ST_Inventorycontrol= 0 then (InventoryStockSummary-InventoryStockInv+InventoryStock0) else InventoryStock1 end as InventoryStock,
-case when ST_Inventorycontrol= 0 then InventoryStockReserved0 else InventoryStockReserved1 end as InventoryStockReserved
-from (SELECT   istk.IS_id  , CAST('false' AS bit) AS [...], Stocksep.Title stocktitle,itm.ITM_Code,  REPLACE(REPLACE(CAST(itm.ITM_fullname AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705))  AS ITM_fullname, 
-                      REPLACE(REPLACE(CAST(unitsep.Title AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) AS Title, itm.ITM_Item_id,  
-                      PRG_Loockup_3.LKP_id GroupItemid" + TxtShowAdition1_1 + TxtShowAdition2_1 +
-                             TxtShowPurchaseItem_1 + TxtShowSaleItem_1 + @"
-" + PricingQ + @"as PricingQ " + PricingTax + @" as PricingTax,
-" + reserverd +
-                             @" ,itm.ITM_nesabt, itm.ITM_nesbatValue, unit2.Title AS TitleUnit2, itm.ITM_unit2,Stocksep.StockID ,itm.ITM_Supplier, isnull(PRG_Customers.cst_fname,'')+' '+isnull( 
-                      PRG_Customers.cst_laname,'') Supplier,itm.ITM_Unit,stkcrm.ST_Inventorycontrol,itm.ITM_id,IS_GroupStock,GRS_GroupName,CAST(NULL AS decimal) AS FeeList,CAST(NULL AS decimal) AS PRC_FeeSell,ITM_duty,ITM_tax,istk.IS_Inventorycontrol,isnull (cast(cast(itm.ITM_Pointorderitem as decimal) as nvarchar(20)) ,0) ITM_Pointorderitem,ITM_Note
-,(select LKP_id from [dbo].[PRG_ItemParameter]
-join PRG_Loockup on LKP_id=[IP_lkp_id] where  LKP_enownerName in 
-(select LKP_enownerName from PRG_Loockup where cast(LKP_id as nvarchar(10))=(select cast(TNZ_sharh as nvarchar(10)) from PRG_Propertise where TNZ_name='cmd1Packing'))
-and [IP_itm_id]=itm.ITM_id ) AS Id1Packing  ,
-(select LKP_id from [dbo].[PRG_ItemParameter]
-join PRG_Loockup on LKP_id=[IP_lkp_id] where  LKP_enownerName in 
-(select LKP_enownerName from PRG_Loockup where cast(LKP_id as nvarchar(10))=(select cast(TNZ_sharh as nvarchar(10)) from PRG_Propertise where TNZ_name='cmd2Packing'))
-and [IP_itm_id]=itm.ITM_id ) AS Id2Packing
- FROM PRG_Item itm  INNER JOIN PRG_ItemStock istk
-on istk.IS_itm_id= itm.ITM_id  " + defualt + @" LEFT OUTER JOIN
-            dbo.PRG_GroupStock on GRS_id=istk.IS_GroupStock 
- INNER JOIN
-" + DataMali + @".INV.Stock Stocksep ON istk.IS_stock = Stocksep.StockID INNER JOIN 
-" + DataMali + @".INV.Unit unitsep ON itm.ITM_Unit = unitsep.UnitID LEFT OUTER JOIN
-                      " + DataMali + @".INV.Unit AS unit2 ON itm.ITM_unit2 = unit2.UnitID 
-left JOIN PRG_Loockup AS PRG_Loockup_2 ON itm.ITM_Type = PRG_Loockup_2.LKP_id
-left JOIN PRG_Loockup AS PRG_Loockup_3 ON itm.ITM_GroupItem = PRG_Loockup_3.LKP_id Left JOIN
-                      PRG_Customers ON itm.ITM_Supplier = PRG_Customers.cst_id INNER JOIN
-PRG_Stock stkcrm on stkcrm.ST_stockid=Stocksep.StockID" + TxtShowAdition1_2 + TxtShowAdition2_2 +
-                             TxtShowPurchaseItem_2 + TxtShowSaleItem_2 + @"
-WHERE (itm.ITM_TypeActive = 1) and Stocksep.IsActive=1 AND Stocksep.StockID not in (select [ST_stockid] from [dbo].[PRG_Stock] where [ST_Showitem]=0) " +
-                             tt + " " + Filter + ") ListItems order by InventoryStock desc";
-            return Resualt;
-            //            string Resualt = @"
-            //select * from (SELECT     itm.ITM_id, CAST('false' AS bit) AS [...], Stocksep.Title stocktitle,itm.ITM_Code, REPLACE(REPLACE(CAST(itm.ITM_fullname AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) AS ITM_fullname, 
-            //                      REPLACE(REPLACE(CAST(unitsep.Title AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) AS Title, itm.ITM_Item_id,  
-            //                      PRG_Loockup_3.LKP_id GroupItemid" + TxtShowAdition1_1 + TxtShowAdition2_1 + TxtShowPurchaseItem_1 + TxtShowSaleItem_1 + @"
-            //" + PricingQ + @",
-            //case when stkcrm.ST_Inventorycon trol= 0 then 
-            //(select cast(Quantity  as float) Quantity  from  " + FrmMain.DataMali + @".INV.ItemStockSummary where StockRef=istk.IS_stock and 
-            //ItemRef=itm.ITM_Item_id and UnitRef=itm.ITM_unit and FiscalYearRef=" + FiscalYearId + @")-
-            //ISNULL((select SUM(INS_Out) from dbo.PRG_InventoryStock where INS_Item=itm.ITM_id and INS_Stock=istk.IS_stock AND TNS_fy_id=" + FiscalYearId + @" and TNS_TypeStock=1 AND INS_state = 1),0)
-            //+ISNULL((select SUM(IDI.Quantity) from dbo.PRG_InventoryStock INNER JOIN
-            //dbo.PRG_Lading on INS_Lading=LD_id INNER JOIN
-            //dbo.PRG_Quotation on LD_Qu_id=dbo.PRG_Quotation.Qu_id INNER JOIN
-            //" + FrmMain.DataMali + @".SLS.QuotationItem QI ON QU_QuotationIdSP=QI.QuotationRef INNER JOIN
-            //" + FrmMain.DataMali + @".SLS.InvoiceItem II ON II.QuotationItemRef = QI.QuotationItemID INNER JOIN
-            //" + FrmMain.DataMali + @".INV.InventoryDeliveryItem IDI ON  IDI.BaseInvoiceItem = II.InvoiceItemID INNER JOIN
-            //" + FrmMain.DataMali + @".INV.InventoryDelivery ID ON IDI.InventoryDeliveryRef = ID.InventoryDeliveryID
-            //where INS_Item=itm.ITM_id and INS_Stock=istk.IS_stock AND TNS_fy_id=" + FiscalYearId + @" and TNS_TypeStock=1 AND INS_state = 1),0)
-            //else (select SUM(INS_Inside)-SUM(INS_Out) from dbo.PRG_InventoryStock 
-            //			where INS_Item=itm.ITM_id  and INS_Stock=istk.IS_stock  AND INS_state=1 and TNS_TypeStock!=1  AND TNS_fy_id=" + FiscalYearId + @") end as InventoryStock,
-            //case when stkcrm.ST_Inventorycontrol= 0 then (select ISNULL((select round(SUM(INS_Out), 4) from dbo.PRG_InventoryStock where INS_Item = itm.ITM_id and INS_Stock =
-            //			istk.IS_stock AND TNS_fy_id = " + FiscalYearId + @" and TNS_TypeStock = 1 AND INS_state = 1 and INS_Type=0),0) )
-            //else (select ISNULL((select round(SUM(INS_Out), 4) from dbo.PRG_InventoryStock where INS_Item = itm.ITM_id and INS_Stock =
-            //			istk.IS_stock AND TNS_fy_id = " + FiscalYearId + @" and TNS_TypeStock != 1 AND INS_state = 1 and INS_Type=0),0) ) end as InventoryStockReserved,
 
-            //case when stkcrm.ST_Inventorycontrol= 0 then 
-            //(select round(((select cast(Quantity  as float) Quantity from  " + FrmMain.DataMali + @".INV.ItemStockSummary where StockRef=istk.IS_stock and 
-            //				ItemRef = itm.ITM_Item_id and UnitRef = itm.ITM_unit2 and FiscalYearRef = " + FiscalYearId + @")-
-            //				ISNULL((select SUM(INS_Out2) from dbo.PRG_InventoryStock where INS_Item=itm.ITM_id and INS_Stock=istk.IS_stock AND TNS_fy_id=" + FiscalYearId + @" and
-            //				 TNS_TypeStock=1 AND INS_state = 1),0)
-            //				 +
-            //				ISNULL((select SUM(IDI.SecondaryQuantity) from dbo.PRG_InventoryStock INNER JOIN
-            //				dbo.PRG_Lading on INS_Lading=LD_id INNER JOIN
-            //				dbo.PRG_Quotation on LD_Qu_id=dbo.PRG_Quotation.Qu_id INNER JOIN
-            //				" + FrmMain.DataMali + @".SLS.QuotationItem QI ON QU_QuotationIdSP=QI.QuotationRef INNER JOIN
-            //				" + FrmMain.DataMali + @".SLS.InvoiceItem II ON II.QuotationItemRef = QI.QuotationItemID INNER JOIN
-            //				" + FrmMain.DataMali + @".INV.InventoryDeliveryItem IDI ON  IDI.BaseInvoiceItem = II.InvoiceItemID INNER JOIN
-            //				" + FrmMain.DataMali + @".INV.InventoryDelivery ID ON IDI.InventoryDeliveryRef = ID.InventoryDeliveryID
-            //				where INS_Item=itm.ITM_id and INS_Stock=istk.IS_stock AND TNS_fy_id=" + FiscalYearId + @" and TNS_TypeStock=1 AND INS_state = 1),0)
-            //				),4))
-            //else null end as InventoryStockSepSecondaryUnit,
-            //case when stkcrm.ST_Inventorycontrol= 0 then (select ISNULL((select round(SUM(INS_Out2), 4) from dbo.PRG_InventoryStock where INS_Item = itm.ITM_id and INS_Stock = istk.IS_stock AND TNS_fy_id = " + FiscalYearId + @" and
-            //		    TNS_TypeStock = 1 AND INS_state = 1 and INS_Type=0),0)) else null end as InventoryStockSepSecondaryUnitRes,
-            //itm.ITM_nesabt, itm.ITM_nesbatValue, unit2.Title AS TitleUnit2, itm.ITM_unit2,Stocksep.StockID ,itm.ITM_Supplier, isnull(PRG_Customers.cst_fname,'')+' '+isnull( 
-            //                      PRG_Customers.cst_laname,'') Supplier,itm.ITM_Unit,stkcrm.ST_Inventorycontrol,istk.IS_id,IS_GroupStock,GRS_GroupName,CAST(NULL AS decimal) AS FeeList,CAST(NULL AS decimal) AS PRC_FeeSell,ITM_duty,ITM_tax
-            //FROM PRG_Item itm  INNER JOIN PRG_ItemStock istk
-            //on istk.IS_itm_id= itm.ITM_id  " + defualt + @" LEFT OUTER JOIN
-            //            dbo.PRG_GroupStock on GRS_id=istk.IS_GroupStock 
-            // INNER JOIN
-            //" + FrmMain.DataMali + @".INV.Stock Stocksep ON istk.IS_stock = Stocksep.StockID INNER JOIN 
-            //" + FrmMain.DataMali + @".INV.Unit unitsep ON itm.ITM_Unit = unitsep.UnitID LEFT OUTER JOIN
-            //                      " + FrmMain.DataMali + @".INV.Unit AS unit2 ON itm.ITM_unit2 = unit2.UnitID 
-            //left JOIN PRG_Loockup AS PRG_Loockup_2 ON itm.ITM_Type = PRG_Loockup_2.LKP_id
-            //left JOIN PRG_Loockup AS PRG_Loockup_3 ON itm.ITM_GroupItem = PRG_Loockup_3.LKP_id Left JOIN
-            //                      PRG_Customers ON itm.ITM_Supplier = PRG_Customers.cst_id INNER JOIN
-            //PRG_Stock stkcrm on stkcrm.ST_stockid=Stocksep.StockID" + TxtShowAdition1_2 + TxtShowAdition2_2 + TxtShowPurchaseItem_2 + TxtShowSaleItem_2 + @"
-            //WHERE (itm.ITM_TypeActive = 1) " + tt + ") ListItems order by ListItems.InventoryStock desc";
-            //            return Resualt; string Resualt = @"
-            //select * from (SELECT     itm.ITM_id, CAST('false' AS bit) AS [...], Stocksep.Title stocktitle,itm.ITM_Code, REPLACE(REPLACE(CAST(itm.ITM_fullname AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) AS ITM_fullname, 
-            //                      REPLACE(REPLACE(CAST(unitsep.Title AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) AS Title, itm.ITM_Item_id,  
-            //                      PRG_Loockup_3.LKP_id GroupItemid" + TxtShowAdition1_1 + TxtShowAdition2_1 + TxtShowPurchaseItem_1 + TxtShowSaleItem_1 + @"
-            //" + PricingQ + @",
-            //case when stkcrm.ST_Inventorycontrol= 0 then 
-            //(select cast(Quantity  as float) Quantity  from  " + FrmMain.DataMali + @".INV.ItemStockSummary where StockRef=istk.IS_stock and 
-            //ItemRef=itm.ITM_Item_id and UnitRef=itm.ITM_unit and FiscalYearRef=" + FiscalYearId + @")-
-            //ISNULL((select SUM(INS_Out) from dbo.PRG_InventoryStock where INS_Item=itm.ITM_id and INS_Stock=istk.IS_stock AND TNS_fy_id=" + FiscalYearId + @" and TNS_TypeStock=1 AND INS_state = 1),0)
-            //+ISNULL((select SUM(IDI.Quantity) from dbo.PRG_InventoryStock INNER JOIN
-            //dbo.PRG_Lading on INS_Lading=LD_id INNER JOIN
-            //dbo.PRG_Quotation on LD_Qu_id=dbo.PRG_Quotation.Qu_id INNER JOIN
-            //" + FrmMain.DataMali + @".SLS.QuotationItem QI ON QU_QuotationIdSP=QI.QuotationRef INNER JOIN
-            //" + FrmMain.DataMali + @".SLS.InvoiceItem II ON II.QuotationItemRef = QI.QuotationItemID INNER JOIN
-            //" + FrmMain.DataMali + @".INV.InventoryDeliveryItem IDI ON  IDI.BaseInvoiceItem = II.InvoiceItemID INNER JOIN
-            //" + FrmMain.DataMali + @".INV.InventoryDelivery ID ON IDI.InventoryDeliveryRef = ID.InventoryDeliveryID
-            //where INS_Item=itm.ITM_id and INS_Stock=istk.IS_stock AND TNS_fy_id=" + FiscalYearId + @" and TNS_TypeStock=1 AND INS_state = 1),0)
-            //else (select SUM(INS_Inside)-SUM(INS_Out) from dbo.PRG_InventoryStock 
-            //			where INS_Item=itm.ITM_id  and INS_Stock=istk.IS_stock  AND INS_state=1 and TNS_TypeStock!=1  AND TNS_fy_id=" + FiscalYearId + @") end as InventoryStock,
-            //case when stkcrm.ST_Inventorycontrol= 0 then (select ISNULL((select round(SUM(INS_Out), 4) from dbo.PRG_InventoryStock where INS_Item = itm.ITM_id and INS_Stock =
-            //			istk.IS_stock AND TNS_fy_id = " + FiscalYearId + @" and TNS_TypeStock = 1 AND INS_state = 1 and INS_Type=0),0) )
-            //else (select ISNULL((select round(SUM(INS_Out), 4) from dbo.PRG_InventoryStock where INS_Item = itm.ITM_id and INS_Stock =
-            //			istk.IS_stock AND TNS_fy_id = " + FiscalYearId + @" and TNS_TypeStock != 1 AND INS_state = 1 and INS_Type=0),0) ) end as InventoryStockReserved,
+//                //if (FrmMain.ShowPricingTax)
+//                //                    PricingTax = @",(SELECT CAST(( Fee+ ((Fee * itm.ITM_tax))/100)AS DECIMAL(19,0))  FROM " + FrmMain.DataMali + @".SLS.[vwPriceNoteItem]   
+//                //   WHERE (([SaleTypeRef] = (select SaleTypeId from " + FrmMain.DataMali + ".SLS.SaleType where Title=REPLACE(REPLACE(CAST('" + saletype + @"' AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) 
+//                //or Title=REPLACE(REPLACE(CAST('" + saletype + "' AS nvarchar(MAX)), NCHAR(1740), NCHAR(1610)), NCHAR(1705), NCHAR(1603))) ) AND ([CurrencyRef] = 1) AND ((( 1=2) OR ([TracingRef] IS NULL)) AND ([ItemRef] =itm.ITM_Item_id)) AND (([CustomerGroupingRef] IS NULL)) )) ";
+//                //                else
+//                //                    PricingTax = " ,0 ";
+//                PricingTax = ",(SELECT CAST(( Fee+ ((Fee * itm.ITM_tax)/100))AS DECIMAL(19,0)) FROM " + DataMali +
+//                             @".SLS.[vwPriceNoteItem] " +
+//                             "WHERE (([SaleTypeRef] = (select SaleTypeId from " + DataMali +
+//                             ".SLS.SaleType where Title=REPLACE(REPLACE(CAST('" + saletype +
+//                             @"' AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) or 
+//Title=REPLACE(REPLACE(CAST('" + saletype +
+//                             "' AS nvarchar(MAX)), NCHAR(1740), NCHAR(1610)), NCHAR(1705), NCHAR(1603))) ) AND ([CurrencyRef] = 1) AND ((( 1=2) OR ([TracingRef] IS NULL)) AND ([ItemRef] =itm.ITM_Item_id)) AND (([CustomerGroupingRef] IS NULL)) ))";
+//                PricingQ = @",(SELECT [Fee] FROM " + DataMali + @".SLS.[vwPriceNoteItem]   
+//   WHERE (([SaleTypeRef] = (select SaleTypeId from " + DataMali + ".SLS.SaleType where Title=REPLACE(REPLACE(CAST('" +
+//                           saletype + @"' AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) 
+//or Title=REPLACE(REPLACE(CAST('" + saletype +
+//                           "' AS nvarchar(MAX)), NCHAR(1740), NCHAR(1610)), NCHAR(1705), NCHAR(1603))) ) AND ([CurrencyRef] = 1) AND ((( 1=2) OR ([TracingRef] IS NULL)) AND ([ItemRef] =itm.ITM_Item_id)) AND (([CustomerGroupingRef] IS NULL)) )) ";
+//                saletype = "";
+//            }
 
-            //case when stkcrm.ST_Inventorycontrol= 0 then 
-            //(select round(((select cast(Quantity  as float) Quantity from  " + FrmMain.DataMali + @".INV.ItemStockSummary where StockRef=istk.IS_stock and 
-            //				ItemRef = itm.ITM_Item_id and UnitRef = itm.ITM_unit2 and FiscalYearRef = " + FiscalYearId + @")-
-            //				ISNULL((select SUM(INS_Out2) from dbo.PRG_InventoryStock where INS_Item=itm.ITM_id and INS_Stock=istk.IS_stock AND TNS_fy_id=" + FiscalYearId + @" and
-            //				 TNS_TypeStock=1 AND INS_state = 1),0)
-            //				 +
-            //				ISNULL((select SUM(IDI.SecondaryQuantity) from dbo.PRG_InventoryStock INNER JOIN
-            //				dbo.PRG_Lading on INS_Lading=LD_id INNER JOIN
-            //				dbo.PRG_Quotation on LD_Qu_id=dbo.PRG_Quotation.Qu_id INNER JOIN
-            //				" + FrmMain.DataMali + @".SLS.QuotationItem QI ON QU_QuotationIdSP=QI.QuotationRef INNER JOIN
-            //				" + FrmMain.DataMali + @".SLS.InvoiceItem II ON II.QuotationItemRef = QI.QuotationItemID INNER JOIN
-            //				" + FrmMain.DataMali + @".INV.InventoryDeliveryItem IDI ON  IDI.BaseInvoiceItem = II.InvoiceItemID INNER JOIN
-            //				" + FrmMain.DataMali + @".INV.InventoryDelivery ID ON IDI.InventoryDeliveryRef = ID.InventoryDeliveryID
-            //				where INS_Item=itm.ITM_id and INS_Stock=istk.IS_stock AND TNS_fy_id=" + FiscalYearId + @" and TNS_TypeStock=1 AND INS_state = 1),0)
-            //				),4))
-            //else null end as InveoryStockSepSecondaryUnit,
-            //case when stkcrm.ST_Inventorycontrol= 0 then (select ISNULL((select round(SUM(INS_Out2), 4) from dbo.PRG_InventoryStock where INS_Item = itm.ITM_id and INS_Stock = istk.IS_stock AND TNS_fy_id = " + FiscalYearId + @" and
-            //		    TNS_TypeStock = 1 AND INS_state = 1 and INS_Type=0),0)) else null end as InventoryStockSepSecondaryUnitRes,
-            //itm.ITM_nesabt, itm.ITM_nesbatValue, unit2.Title AS TitleUnit2, itm.ITM_unit2,Stocksep.StockID ,itm.ITM_Supplier, isnull(PRG_Customers.cst_fname,'')+' '+isnull( 
-            //                      PRG_Customers.cst_laname,'') Supplier,itm.ITM_Unit,stkcrm.ST_Inventorycontrol,istk.IS_id,IS_GroupStock,GRS_GroupName,CAST(NULL AS decimal) AS FeeList,CAST(NULL AS decimal) AS PRC_FeeSell,ITM_duty,ITM_tax
-            //FROM PRG_Item itm  INNER JOIN PRG_ItemStock istk
-            //on istk.IS_itm_id= itm.ITM_id  " + defualt + @" LEFT OUTER JOIN
-            //            dbo.PRG_GroupStock on GRS_id=istk.IS_GroupStock 
-            // INNER JOIN
-            //" + FrmMain.DataMali + @".INV.Stock Stocksep ON istk.IS_stock = Stocksep.StockID INNER JOIN 
-            //" + FrmMain.DataMali + @".INV.Unit unitsep ON itm.ITM_Unit = unitsep.UnitID LEFT OUTER JOIN
-            //                      " + FrmMain.DataMali + @".INV.Unit AS unit2 ON itm.ITM_unit2 = unit2.UnitID 
-            //left JOIN PRG_Loockup AS PRG_Loockup_2 ON itm.ITM_Type = PRG_Loockup_2.LKP_id
-            //left JOIN PRG_Loockup AS PRG_Loockup_3 ON itm.ITM_GroupItem = PRG_Loockup_3.LKP_id Left JOIN
-            //                      PRG_Customers ON itm.ITM_Supplier = PRG_Customers.cst_id INNER JOIN
-            //PRG_Stock stkcrm on stkcrm.ST_stockid=Stocksep.StockID" + TxtShowAdition1_2 + TxtShowAdition2_2 + TxtShowPurchaseItem_2 + TxtShowSaleItem_2 + @"
-            //WHERE (itm.ITM_TypeActive = 1) " + tt + ") ListItems order by ListItems.InventoryStock desc";
-            //            return Resualt;
+//            saletype = "";
+//            string TxtShowAdition1_1 = "";
+//            string TxtShowAdition1_2 = "";
+//            //if (FrmMain.ShowAdition1)
+//            //{
+//            TxtShowAdition1_1 = ",lkp1.LKP_name TitleItemAdition1,lkp1.LKP_value ValueAddition1 ";
+//            TxtShowAdition1_2 = " LEFT JOIN dbo.PRG_Loockup lkp1 on lkp1.LKP_id=itm.ITM_ItemAdition1 ";
+//            //}
+//            string TxtShowAdition2_1 = "";
+//            string TxtShowAdition2_2 = "";
+//            //if (FrmMain.ShowAdition2)
+//            //{
+//            TxtShowAdition2_1 = ",lkp2.LKP_name TitleItemAdition2,lkp1.LKP_value ValueAddition2 ";
+//            TxtShowAdition2_2 = " LEFT JOIN dbo.PRG_Loockup lkp2 on lkp2.LKP_id=itm.ITM_ItemAdition2 ";
+//            //}
+//            string TxtShowPurchaseItem_1 = "";
+//            string TxtShowPurchaseItem_2 = "";
+//            //if (FrmMain.ShowPurchaseItem)
+//            //{
+//            TxtShowPurchaseItem_1 =
+//                ",REPLACE(REPLACE(CAST(PurchaseGroup.Title AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) TitlePurchaseGroup ";
+//            TxtShowPurchaseItem_2 = "  LEFT JOIN " + DataMali +
+//                                    @".GNR.Grouping PurchaseGroup ON itm.ITM_PurchaseGroup = PurchaseGroup.GroupingID ";
+//            //}
+//            string TxtShowSaleItem_1 = "";
+//            string TxtShowSaleItem_2 = "";
+//            //if (FrmMain.ShowSaleItem)
+//            //{
+//            TxtShowSaleItem_1 =
+//                ",REPLACE(REPLACE(CAST(SaleGroup.Title AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) TitleSaleGroup ";
+//            TxtShowSaleItem_2 = "  LEFT JOIN " + DataMali +
+//                                @".GNR.Grouping SaleGroup ON itm.ITM_SaleGroup = SaleGroup.GroupingID ";
+//            //}
+
+//            string defualt = "";
+//            if (clsProperties.GetPropertise("ShowtemDefualt").ToBoolean())
+//            {
+//                defualt = " and istk.IS_Default = 1 ";
+//            }
+
+//            string reserverd = Stringreserved(FiscalYearId);
+//            string Resualt = @"select *,
+//case when ST_Inventorycontrol= 0 then (InventoryStockSummary-InventoryStockInv+InventoryStock0) else InventoryStock1 end as InventoryStock,
+//case when ST_Inventorycontrol= 0 then InventoryStockReserved0 else InventoryStockReserved1 end as InventoryStockReserved
+//from (SELECT   istk.IS_id  , CAST('false' AS bit) AS [...], Stocksep.Title stocktitle,itm.ITM_Code,  REPLACE(REPLACE(CAST(itm.ITM_fullname AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705))  AS ITM_fullname, 
+//                      REPLACE(REPLACE(CAST(unitsep.Title AS nvarchar(MAX)), NCHAR(1610), NCHAR(1740)), NCHAR(1603), NCHAR(1705)) AS Title, itm.ITM_Item_id,  
+//                      PRG_Loockup_3.LKP_id GroupItemid" + TxtShowAdition1_1 + TxtShowAdition2_1 +
+//                             TxtShowPurchaseItem_1 + TxtShowSaleItem_1 + @"
+//" + PricingQ + @"as PricingQ " + PricingTax + @" as PricingTax,
+//" + reserverd +
+//                             @" ,itm.ITM_nesabt, itm.ITM_nesbatValue, unit2.Title AS TitleUnit2, itm.ITM_unit2,Stocksep.StockID ,itm.ITM_Supplier, isnull(PRG_Customers.cst_fname,'')+' '+isnull( 
+//                      PRG_Customers.cst_laname,'') Supplier,itm.ITM_Unit,stkcrm.ST_Inventorycontrol,itm.ITM_id,IS_GroupStock,GRS_GroupName,CAST(NULL AS decimal) AS FeeList,CAST(NULL AS decimal) AS PRC_FeeSell,ITM_duty,ITM_tax,istk.IS_Inventorycontrol,isnull (cast(cast(itm.ITM_Pointorderitem as decimal) as nvarchar(20)) ,0) ITM_Pointorderitem,ITM_Note
+//,(select LKP_id from [dbo].[PRG_ItemParameter]
+//join PRG_Loockup on LKP_id=[IP_lkp_id] where  LKP_enownerName in 
+//(select LKP_enownerName from PRG_Loockup where cast(LKP_id as nvarchar(10))=(select cast(TNZ_sharh as nvarchar(10)) from PRG_Propertise where TNZ_name='cmd1Packing'))
+//and [IP_itm_id]=itm.ITM_id ) AS Id1Packing  ,
+//(select LKP_id from [dbo].[PRG_ItemParameter]
+//join PRG_Loockup on LKP_id=[IP_lkp_id] where  LKP_enownerName in 
+//(select LKP_enownerName from PRG_Loockup where cast(LKP_id as nvarchar(10))=(select cast(TNZ_sharh as nvarchar(10)) from PRG_Propertise where TNZ_name='cmd2Packing'))
+//and [IP_itm_id]=itm.ITM_id ) AS Id2Packing
+// FROM PRG_Item itm  INNER JOIN PRG_ItemStock istk
+//on istk.IS_itm_id= itm.ITM_id  " + defualt + @" LEFT OUTER JOIN
+//            dbo.PRG_GroupStock on GRS_id=istk.IS_GroupStock 
+// INNER JOIN
+//" + DataMali + @".INV.Stock Stocksep ON istk.IS_stock = Stocksep.StockID INNER JOIN 
+//" + DataMali + @".INV.Unit unitsep ON itm.ITM_Unit = unitsep.UnitID LEFT OUTER JOIN
+//                      " + DataMali + @".INV.Unit AS unit2 ON itm.ITM_unit2 = unit2.UnitID 
+//left JOIN PRG_Loockup AS PRG_Loockup_2 ON itm.ITM_Type = PRG_Loockup_2.LKP_id
+//left JOIN PRG_Loockup AS PRG_Loockup_3 ON itm.ITM_GroupItem = PRG_Loockup_3.LKP_id Left JOIN
+//                      PRG_Customers ON itm.ITM_Supplier = PRG_Customers.cst_id INNER JOIN
+//PRG_Stock stkcrm on stkcrm.ST_stockid=Stocksep.StockID" + TxtShowAdition1_2 + TxtShowAdition2_2 +
+//                             TxtShowPurchaseItem_2 + TxtShowSaleItem_2 + @"
+//WHERE (itm.ITM_TypeActive = 1) and Stocksep.IsActive=1 AND Stocksep.StockID not in (select [ST_stockid] from [dbo].[PRG_Stock] where [ST_Showitem]=0) " +
+//                             tt + " " + Filter + ") ListItems order by InventoryStock desc";
+//            return Resualt;
         }
 
         public static string GetInventoryItem(string Cstid, string IS_id, decimal Inventory, string Code)
         {
             string Resualt = "";
-            DataTable dtfiscalyear = GetFiscalYearNow(FiscalYearNowStr);
+            DataTable dtfiscalyear = GetFiscalYearNow(GetFiscalYearNowStr());
             string FiscalYearId = dtfiscalyear.Rows[0]["FiscalYearId"].ToString();
 
             DataTable dtmojodi = cp.select_command(SelectItem("", FiscalYearId, " AND istk.IS_id = " + IS_id, Cstid));
@@ -1267,7 +1208,6 @@ FROM PRG_DetailMedalPeriod INNER JOIN
                                 medalColor = Int32.Parse(drperiod["Color"].ToString());
                         }
                     }
-
                     dr.BeginEdit();
                     dr["Clustername"] = medal;
                     dr["ClusterColor"] = medalColor;
@@ -1279,30 +1219,40 @@ FROM PRG_DetailMedalPeriod INNER JOIN
 
             return dtshow;
         }
-
+        public static string CheckInventory = "";
         public static bool BeforeGetInventoryItem(string Cstid, string Item, string Stock, string id, string formname, string values, string code, DataTable dtaghlam0, int Idref)
         {
             DataTable dtaghlam = dtaghlam0.Copy();
-            string CheckInventory = "";
+            
             bool CheckInventoryTrue = false;
             bool chkbalance = false;
 
             if (formname == "PRG_RequestBuyItem")
-                if (clsProperties.GetPropertise("chkbalanceR").ToBoolean())
+                if (clsProperties.GetPropertise("checkinventorystockPortal").ToInt() == 1)
                     chkbalance = true;
+                else
+                {
+                    if (clsProperties.GetPropertise("chkbalanceR").ToBoolean())
+                        chkbalance = true;
+                }
             if (formname == "PRG_QuotationItem")
-                if (clsProperties.GetPropertise("chkbalanceQ").ToBoolean())
+                if (clsProperties.GetPropertise("checkinventorystockPortal").ToInt() == 1)
                     chkbalance = true;
-            if (formname == "PRG_InvoiceItem")
-                if (clsProperties.GetPropertise("chkbalanceI").ToBoolean())
-                    chkbalance = true;
+                else
+                {
+                    if (clsProperties.GetPropertise("chkbalanceQ").ToBoolean())
+                        chkbalance = true;
+                }
+            //if (formname == "PRG_InvoiceItem")
+            //    if (clsProperties.GetPropertise("chkbalanceI").ToBoolean())
+            //        chkbalance = true;
 
 
             if (chkbalance)//موجودی  چک شود در تنظطیمات
             {
                 foreach (DataRow dr in dtaghlam.Rows)
                 {
-
+                    
                     DataTable dtmcheckojodi = cp.select_command(@"select case ST_Inventorycontrol when 1 then 1 
 else IS_Inventorycontrol end as checkInventorycontrol from dbo.PRG_ItemStock
 join dbo.PRG_Stock on ST_stockid = IS_stock where IS_stock=" + dr[Stock].ToString() + " AND IS_itm_id=" + dr[Item].ToString());
@@ -1329,19 +1279,10 @@ join dbo.PRG_Stock on ST_stockid = IS_stock where IS_stock=" + dr[Stock].ToStrin
                                         sumvalues = sumvalues - decimal.Parse(dtmojodi.Rows[0][0].ToString());
                             }
                         }
-                        if (clsProperties.GetPropertise("reservesanad").ToInt() == 3)//پیش فاکتور ثبت شده
-                        {
-                            if (!string.IsNullOrEmpty(dr["QUI_id"].ToString()))
-                            {
-                                dtmojodi = cp.select_command("select INS_Out from [dbo].[PRG_InventoryStock] where INS_Type=0 and INS_state =1 and INS_QuotationItem =" + dr["QUI_id"].ToString());
-
-                                if (dtmojodi != null)
-                                    if (dtmojodi.Rows.Count > 0)
-                                        sumvalues = sumvalues - decimal.Parse(dtmojodi.Rows[0][0].ToString());
-                            }
-                        }
                         string CheckInventory0 = "";
-                        CheckInventory0 = GetInventoryItem(Cstid, dr["IS_id"].ToString(), sumvalues, dr[code].ToString());
+                        string gg = dr[Item].ToString();
+                        DataTable dtcode = cp.select_command("select itm_code from [dbo].[prg_item] where ITM_id=" + dr[Item].ToString()) ;
+                        CheckInventory0 = GetInventoryItem(Cstid, dr["IS_id"].ToString(), sumvalues, dtcode.Rows[0][0].ToString());
                         if (CheckInventory0 != "")
                         {
                             CheckInventory = CheckInventory + CheckInventory0 + ",";
@@ -1352,23 +1293,6 @@ join dbo.PRG_Stock on ST_stockid = IS_stock where IS_stock=" + dr[Stock].ToStrin
                 if (CheckInventory != "")
                 {
                     CheckInventoryTrue = false;
-                    //CheckInventory = CheckInventory.Substring(0, CheckInventory.Length - 1);
-                    //if (clsProperties.GetPropertise("chkNegativebalance").ToBoolean())//پیغام هشدار داده شود یانه در تنظیمات سیستمی موجودی کالا
-                    //{
-                    //    if (DialogResult.No == classes.clsFarsiMessageBox.MojodiManfi(" موجودی کالا با کدهای " + "(" + CheckInventory + ")" + " منفی میشود.آیا فرم با کالای دارای موجودی منفی ثبت شود؟ "))
-                    //    {
-                    //        CheckInventoryTrue = false;
-                    //        checkinseretstatic = true;
-                    //    }
-                    //    else
-                    //        CheckInventoryTrue = true;
-                    //}
-                    //else
-                    //{
-                    //    CheckInventoryTrue = false;
-                    //    checkinseretstatic = true;
-                    //    classes.clsFarsiMessageBox.ShowMessage(0, " موجودی کالا با کدهای " + "(" + CheckInventory + ")" + " منفی میشود ", "خطا", "تایید", "تایید", "", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign);
-                    //}
                 }
                 else
                 {

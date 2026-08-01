@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <UserSecretsId>c1b9fa78-8131-4aed-996c-3f0d72ec4644</UserSecretsId>
     <Version>1.1.2</Version>
     <AssemblyVersion>1.2.1.0</AssemblyVersion>
@@ -9,7 +9,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+		  <!--<Reference Include="FastReport.OpenSource">
+			  <HintPath>D:\Hamed\API\sigma_api\sigma_api\Libs\FastReport.OpenSource.dll</HintPath>
+			  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		  </Reference>
+
+		  <Reference Include="FastReport.OpenSource.Export.PdfSimple">
+			  <HintPath>D:\Hamed\API\sigma_api\sigma_api\Libs\FastReport.OpenSource.Export.PdfSimple.dll</HintPath>
+			  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		  </Reference>-->
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="FastReport.OpenSource" Version="2026.2.1" />
+    <PackageReference Include="FastReport.OpenSource.Export.PdfSimple" Version="2026.2.1" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Cors" Version="5.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.1" NoWarn="NU1605" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="5.0.1" NoWarn="NU1605" />
@@ -20,9 +31,11 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Graph" Version="6.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="PdfExporter.FastReport.OpenSource" Version="1.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.3" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.3" />
+    <PackageReference Include="System.Text.Json" Version="10.0.8" />
   </ItemGroup>
-
 </Project>

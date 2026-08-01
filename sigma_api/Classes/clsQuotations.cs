@@ -35,21 +35,19 @@ namespace sigma_api.Classes
         }
         public int Acsept(DataRow Header, DataTable listItem) // تابع ذخیره سازی و ثبت پیش فاکتور و گرفتن تسویه از مشتری
         {
-
+            int insertbuyPortalType = clsProperties.GetPropertise("insertbuyPortalType").ToInt();
             DatePro date = new DatePro();
             bool CheckPishnevis;
             CheckPishnevis = clsDB.CheckPishnevis;
             clsDB.CheckPishnevis = false;
-            DateTime time = cp.GetDateTime();
-            dtdate = time;
-            int year = date.GetDatePertion(dtdate.ToShortDateString()).Split('/')[0].ToInt();
+            //DateTime time = cp.GetDateTime();
+            dtdate = cp.GetDateTime();
+            //dtdate = DateTime.Now;
+            string miladishamsi = ShamsiDate.MiladiToShamsi(dtdate);
+            int year = ShamsiDate.MiladiToShamsi(dtdate).Split('/')[0].ToInt();
             DataTable dtfiscalyear = clsDB.GetFiscalYearNow(year.ToString());
             string FiscalYearId = dtfiscalyear.Rows[0]["FiscalYearId"].ToString();
-
-
             string id = "";
-
-
 
             //-------------------- انقضا
             //int etebar_Date = clsProperties.expireddayQuotation.ToInt();
@@ -70,24 +68,7 @@ namespace sigma_api.Classes
             id = "";
 
 
-
-            string stockstrgh = "";
-            if (!clsProperties.GetPropertise("anbardetail").ToBoolean())
-            {
-                stockstrgh = "@stock";
-            }
-            else
-            {
-                stockstrgh = "NULL";
-            }
-            string chaneg = "";
-            chaneg = "1";
-
-
             command.CommandText = @"
-BEGIN TRANSACTION [Tran1]
- BEGIN TRY 
-
     declare @FiscalYearRef int
                set @FiscalYearRef=" + FiscalYearId + @"
     DECLARE @strout int
@@ -95,19 +76,9 @@ BEGIN TRANSACTION [Tran1]
     declare @QUno int
                set @QUno=(select isnull(max(QU_no) + 1, 1) from PRG_Quotation WHERE QU_FiscalYearRef=@FiscalYearRef)
     insert into dbo.PRG_Quotation 
-                (QU_id, QU_rb_id, QU_typesale,QU_TypeTasfie, QU_no, QU_date, QU_dateexpired, QU_modificationdate, QU_cst_id, QU_stock, QU_add_id, QU_desc, QU_type, QU_creator, QU_confirmer, QU_confirmdate, QU_Discount, QU_addition, QU_tax, QU_duty, QU_NetPrice,QU_Price, changestatePrs,QU_typeMoneySale,QU_Tamin,QU_SalesExpert,QU_FiscalYearRef,QU_deliverylocation,Qu_Note,QU_address)
-                values(@strout,@rb,@typesale,@TypeTasfie,@QUno,@date,@dateexpired,GETDATE(),@cst," + stockstrgh + @",@add,@desc,@typee,@creator,null,null,@Discount,@addition,@tax,@duty,@NetPrice,@Price," + chaneg + @",@typeMoneySale,@Tamin,@SalesExpert,@FiscalYearRef,@deliverylocation,@Note,@QU_address); 
-   select (SELECT cast(@strout as nvarchar(20))) +'*'+(select cast(@QUno as nvarchar(100)));
-COMMIT TRANSACTION[Tran1]
-
-  END TRY
-
-  BEGIN CATCH
-
-            SELECT
-             ERROR_MESSAGE() AS ErrorMessage;
-                ROLLBACK TRANSACTION[Tran1]
-  END CATCH";
+                (QU_id, QU_Portal,QU_rb_id, QU_typesale,QU_Reserved,QU_TypeTasfie, QU_no, QU_date, QU_dateexpired, QU_modificationdate, QU_cst_id, QU_stock, QU_add_id, QU_desc, QU_type, QU_creator, QU_confirmer, QU_confirmdate, QU_Discount, QU_addition, QU_tax, QU_duty, QU_NetPrice,QU_Price, changestatePrs,QU_typeMoneySale,QU_Tamin,QU_SalesExpert,QU_FiscalYearRef,QU_deliverylocation,Qu_Note,QU_address,QU_Checkinventory,QU_Modifier,QU_CustomerName)
+                values(@strout,1,@rb,@typesale,1,(select cast(TNZ_sharh as nvarchar(10)) from PRG_Propertise where TNZ_name='DefualtTasfiePortal'),@QUno,@date,@dateexpired,GETDATE(),@cst,null,@add,@desc,@typee,@creator,@confirmer,@confirmdate,@Discount,@addition,@tax,@duty,@NetPrice,@Price,@changestatePrs,@typeMoneySale,@Tamin,@SalesExpert,@FiscalYearRef,@deliverylocation,@Note,@QU_address,0,@creator,(select ISNULL(cst_fname,'')+' '+ISNULL(cst_laname,'') from PRG_Customers where cst_id=@cst));  
+   select (SELECT cast(@strout as nvarchar(20))) +'*'+(select cast(@QUno as nvarchar(100)))";
             command.Parameters.Add("@cst", SqlDbType.Int).Value = Header["CustomerId"].ToInt();
 
             //if (currentRowCustomersNostatic != null)
@@ -120,19 +91,36 @@ COMMIT TRANSACTION[Tran1]
             //    command.Parameters.Add("@cst", SqlDbType.Int).Value = idcustomers;
             //    classes.clsDB.CstForm = idcustomers;
             //}
-
             command.Parameters.Add("@Creator", SqlDbType.Int).Value = Header["SalesExpert"].ToInt();
+
+            // @confirmer,@confirmdate
+            if (insertbuyPortalType == 0)
+            {
+                command.Parameters.Add("@confirmdate", SqlDbType.DateTime).Value = DBNull.Value;
+                command.Parameters.Add("@confirmer", SqlDbType.Int).Value = DBNull.Value;
+                command.Parameters.Add("@changestatePrs", SqlDbType.Int).Value = 0;
+            }
+            if (insertbuyPortalType == 1)
+            {
+                command.Parameters.Add("@confirmdate", SqlDbType.DateTime).Value = dtdate;
+                command.Parameters.Add("@confirmer", SqlDbType.Int).Value = Header["SalesExpert"].ToInt();
+                command.Parameters.Add("@changestatePrs", SqlDbType.Int).Value = 1;
+            }
+
 
             command.Parameters.Add("@rb", SqlDbType.Int).Value = DBNull.Value;
 
-            DataTable dt = cp.select_command($"SELECT add_id FROM dbo.PRG_Address WHERE add_cst_id = {Header["CustomerId"].ToInt()} AND add_type = 1", null, transaction);
+            DataTable dt = cp.select_command(
+                "SELECT add_id FROM dbo.PRG_Address WHERE add_cst_id = @cst_id AND add_type = 1",
+                new SqlParameter[] { new SqlParameter("@cst_id", Header["CustomerId"].ToInt()) },
+                transaction);
             if (dt.Rows.Count > 0)
             {
                 command.Parameters.Add("@add", SqlDbType.Int).Value = dt.Rows[0]["add_id"].ToInt();
             }
             else
             {
-                transaction.Rollback();
+                transaction?.Rollback();
                 try { cp.connect().Close(); }
                 catch { }
 
@@ -140,18 +128,25 @@ COMMIT TRANSACTION[Tran1]
                 return 0;
             }
             //            }
-            command.Parameters.Add("@typesale", SqlDbType.Int).Value = Header["TypeSale"].ToInt();
-            command.Parameters.Add("@Note", SqlDbType.NText).Value = DBNull.Value;
-
-
-            command.Parameters.Add("@TypeTasfie", SqlDbType.Int).Value = typePayment(Header["TypeSale"].ToInt());
-
+            int TSALE = -1;
+            if (Header["TypeSale"].ToInt() == 1)
+                TSALE = 0;
+            if (Header["TypeSale"].ToInt() == 2)
+                TSALE = 1;
+            if (Header["TypeSale"].ToInt() == 3)
+                TSALE = 2;
+            command.Parameters.Add("@typesale", SqlDbType.Int).Value = TSALE;
+            command.Parameters.Add("@Note", SqlDbType.NVarChar, 4000).Value = "پیش فاکتور دریافتی از پورتال مشتریان";
+            //command.Parameters.Add("@TypeTasfie", SqlDbType.Int).Value = typePayment(Header["TypeSale"].ToInt());
             command.Parameters.Add("@deliverylocation", SqlDbType.Int).Value = Header["Location"].ToInt();
-            command.Parameters.Add("@QU_address", SqlDbType.NText).Value = Header["address"].ToString();
+            command.Parameters.Add("@QU_address", SqlDbType.NVarChar,4000).Value = Header["address"].ToString();
 
             command.Parameters.Add("@SalesExpert", SqlDbType.Int).Value = Header["SalesExpert"].ToInt(); //user id
 
-            command.Parameters.Add("@typee", SqlDbType.TinyInt).Value = 0;
+            if (insertbuyPortalType == 0)
+                command.Parameters.Add("@typee", SqlDbType.TinyInt).Value = 0;
+            if (insertbuyPortalType == 1)
+                command.Parameters.Add("@typee", SqlDbType.TinyInt).Value = 1;
             decimal sumdescount = 0;
             decimal sumAddition = 0;
             decimal sumprice = 0;
@@ -181,12 +176,12 @@ COMMIT TRANSACTION[Tran1]
 
             command.Parameters.Add("@typeMoneySale", SqlDbType.Bit).Value = 0;
 
-            command.Parameters.Add("@desc", SqlDbType.NVarChar, 500).Value = Header["Description"].ToInt();
+            command.Parameters.Add("@desc", SqlDbType.NVarChar, 4000).Value = Header["Description"].ToString();
 
 
-            command.Parameters.Add("@date", SqlDbType.DateTime).Value = Convert.ToDateTime(Header["Date"]);
+            command.Parameters.Add("@date", SqlDbType.DateTime).Value = Convert.ToDateTime(Header["Date"]).Date;
 
-            command.Parameters.Add("@dateexpired", SqlDbType.DateTime).Value = Convert.ToDateTime(Header["expire_date"]); // تاریخ انقضا
+            command.Parameters.Add("@dateexpired", SqlDbType.DateTime).Value = Convert.ToDateTime(Header["expire_date"]).Date; // تاریخ انقضا
 
             command.Parameters.Add("@Tamin", SqlDbType.Int).Value = DBNull.Value;
 
@@ -210,7 +205,7 @@ COMMIT TRANSACTION[Tran1]
                     {
                         try
                         {
-                            transaction.Rollback();
+                            transaction?.Rollback();
                             try { cp.connect().Close(); }
                             catch { }
                         }
@@ -228,7 +223,7 @@ COMMIT TRANSACTION[Tran1]
                     try
                     {
                         checkinsert = false;
-                        transaction.Rollback();
+                        transaction?.Rollback();
                         try { cp.connect().Close(); }
                         catch { }
 
@@ -247,7 +242,6 @@ COMMIT TRANSACTION[Tran1]
                     {
                         if (scaler != 0)
                         {
-
                             DataTable dtaghlamdatabase = new DataTable();
                             dtaghlamdatabase.Columns.Add("QUI", typeof(int));
                             dtaghlamdatabase.Columns.Add("QU", typeof(int));
@@ -267,6 +261,9 @@ COMMIT TRANSACTION[Tran1]
                             dtaghlamdatabase.Columns.Add("GroupStock", typeof(string));
                             dtaghlamdatabase.Columns.Add("stockid2", typeof(int));
                             dtaghlamdatabase.Columns.Add("QUI_RBI_id", typeof(int));
+                            dtaghlamdatabase.Columns.Add("QUI_TracingRef", typeof(int));
+                            dtaghlamdatabase.Columns.Add("QUI_Reserved", typeof(bool));
+
                             //bool nextok = false;
                             int rownumber = 0;
                             bool checkaghlamValuesec = false;
@@ -277,13 +274,16 @@ COMMIT TRANSACTION[Tran1]
                                 Nullable<Int32> mabna = 0;
                                 if (dr["nesbat"].ToInt() > 0 && clsProperties.GetPropertise("SubunitQuotation").ToBoolean())
                                 {
-                                    valuesec = value / dr["nesbatValue"].ToDecimal();
+                                    if(dr["nesbatValue"].ToDecimal()!=0)
+                                        valuesec = value / dr["nesbatValue"].ToDecimal();
+                                    else
+                                        valuesec = null;
                                 }
                                 else
                                 {
                                     valuesec = null;
                                 }
-
+                                string gg = dr["price"].ToString();
                                 decimal descount = ((decimal.Parse(dr["price"].ToString()) * decimal.Parse(dr["discountCustomer"].ToString())) / 100);
                                 decimal tax = (((decimal.Parse(dr["price"].ToString()) - descount) * decimal.Parse(dr["tax"].ToString())) / 100);
                                 decimal netPrice = (decimal.Parse(dr["price"].ToString()) - descount) + tax;
@@ -303,18 +303,18 @@ COMMIT TRANSACTION[Tran1]
 
                                 if (valuesec != 0)
                                 {
-                                    dtaghlamdatabase.Rows.Add(0, scaler, Int32.Parse(dr["itm_id"].ToString()), value, valuesec, decimal.Parse(dr["fee"].ToString()), descount, double.Parse(dr["discountCustomer"].ToString()), netPrice.ToString("F4").ToDecimal(), 0, "", tax, 0, 0, stockitem, stk2, DBNull.Value, mabna);
+                                    dtaghlamdatabase.Rows.Add(0, scaler, Int32.Parse(dr["itm_id"].ToString()), value, valuesec, decimal.Parse(dr["fee"].ToString()), descount, double.Parse(dr["discountCustomer"].ToString()), netPrice.ToString("F4").ToDecimal(), 0, "", tax, 0, 0, stockitem, stk2, DBNull.Value, mabna, DBNull.Value);
                                 }
                                 else
                                 {
-                                    dtaghlamdatabase.Rows.Add(0, scaler, Int32.Parse(dr["itm_id"].ToString()), value, DBNull.Value, decimal.Parse(dr["fee"].ToString()), descount, double.Parse(dr["discountCustomer"].ToString()), netPrice.ToString("F4").ToDecimal(), 0, "", tax, 0, 0, stockitem, stk2, DBNull.Value, mabna);
+                                    dtaghlamdatabase.Rows.Add(0, scaler, Int32.Parse(dr["itm_id"].ToString()), value, DBNull.Value, decimal.Parse(dr["fee"].ToString()), descount, double.Parse(dr["discountCustomer"].ToString()), netPrice.ToString("F4").ToDecimal(), 0, "", tax, 0, 0, stockitem, stk2, DBNull.Value, mabna, DBNull.Value);
                                 }
 
                             }
 
                             if (checktrn2)
                             {
-                                transaction.Rollback();
+                                transaction?.Rollback();
                                 try { cp.connect().Close(); }
                                 catch { }
                                 return 0;
@@ -330,9 +330,9 @@ COMMIT TRANSACTION[Tran1]
                             try
                             {
                                 string text = Convert.ToString(command.ExecuteScalar());
-                                transaction.Commit();
+                                transaction?.Commit();
                                 cp.close();
-                                return scaler;
+                                return number;
                                 /*if (chkTypeTasvie.SelectedValue.ToBoolean())
                                 {
                                     FrmPayment fp = new FrmPayment(clsProperties.Kiosk_TerminalId, sumprice);
@@ -459,7 +459,7 @@ COMMIT TRANSACTION[Tran1]
                             {
                                 try
                                 {
-                                    transaction.Rollback();
+                                    transaction?.Rollback();
                                     try { cp.connect().Close(); }
                                     catch { }
                                 }
@@ -470,12 +470,11 @@ COMMIT TRANSACTION[Tran1]
                                 return 0;
 
                             }
-
                         }
                     }
                 }
             }
-            catch { }
+            catch{ }
             return 0;
         }
 
@@ -514,59 +513,70 @@ COMMIT TRANSACTION[Tran1]
             //}
             //catch { }
         }
-        public bool Etebar(DataRow Header, DataTable listItem) // اعتبار سنجی مشتری
+        public bool Etebar(DataRow Header,DataTable listItem) // اعتبار سنجی مشتری
         {
-
-            ArrayList Arraycreditlimit = new ArrayList();
-            foreach (DataRow dr in listItem.Rows)
-            {
-                bool chk = false;
-                foreach (string str in Arraycreditlimit)
-                {
-                    if (str == dr["stock_id"].ToString())
-                    {
-                        chk = true;
-                        break;
-                    }
-                }
-                if (!chk)
-                    Arraycreditlimit.Add(dr["stock_id"].ToString());
-                string gg = dr["stock_id"].ToString();
-            }
-            bool CreditLimit = false;
-            foreach (string str in Arraycreditlimit)
-            {
-                decimal MetrajJari = 0;
-                decimal MoneyJari = 0;
-                foreach (DataRow dr in listItem.Rows)
-                {
-                    MetrajJari = MetrajJari + decimal.Parse(dr["value"].ToString());
-                    MoneyJari = MoneyJari + decimal.Parse(dr["Price"].ToString());
-                }
-
-                CreditLimit = clsGlobal.creditlimit(2, Header["CustomerId"].ToInt(), str, clsProperties.GetPropertise("Kiosk_SaleType").ToInt(), Header["TypeSale"].ToInt(), MetrajJari, MoneyJari, true);
-                if (!CreditLimit)
-                    break;
-            }
-            if (CreditLimit)
-            {
+            if (clsProperties.GetPropertise("checkEtebarPortal").ToInt() == 1)
                 return true;
-            }
             else
             {
-                clsDB.checkinseretstatic = true;
-                return false;
-                string error = "";
-                foreach (DataRow dr in classes.clsGlobal.DTSEllLimited.Rows)
+                ArrayList Arraycreditlimit = new ArrayList();
+                foreach (DataRow dr in listItem.Rows)
                 {
-                    error = error + "\n\r" + dr[0].ToString();
+                    bool chk = false;
+                    foreach (string str in Arraycreditlimit)
+                    {
+                        if (str == dr["stock_id"].ToString())
+                        {
+                            chk = true;
+                            break;
+                        }
+                    }
+                    if (!chk)
+                        Arraycreditlimit.Add(dr["stock_id"].ToString());
+                    string gg = dr["stock_id"].ToString();
+                }
+                bool CreditLimit = false;
+                foreach (string str in Arraycreditlimit)
+                {
+                    decimal MetrajJari = 0;
+                    decimal MoneyJari = 0;
+                    foreach (DataRow dr in listItem.Rows)
+                    {
+                        MetrajJari = MetrajJari + decimal.Parse(dr["value"].ToString());
+                        MoneyJari = MoneyJari + decimal.Parse(dr["Price"].ToString());
+                    }
+
+                    CreditLimit = true;//clsGlobal.creditlimit(2, Header["CustomerId"].ToInt(), str, clsProperties.GetPropertise("Kiosk_SaleType").ToInt(), Header["TypeSale"].ToInt(), MetrajJari, MoneyJari, true);
+                    if (!CreditLimit)
+                        break;
+                }
+                if (CreditLimit)
+                {
+                    return true;
+                }
+                else
+                {
+                    MessageError = "حد اعتبار مشتری رعایت نشده است";
+                    clsDB.checkinseretstatic = true;
+                    return false;
+                    string error = "";
+                    foreach (DataRow dr in classes.clsGlobal.DTSEllLimited.Rows)
+                    {
+                        error = error + "\n\r" + dr[0].ToString();
+                    }
                 }
             }
         }
         public bool inventory(DataRow Header, DataTable listItem) //گرفتن موجودی کالاهای اقلام  دیتا گرید
         {
             int idref = 0;
-            return clsDB.BeforeGetInventoryItem(Header["CustomerId"].ToInt().ToString(), "item_id", "stock_id", "QUI_id", "PRG_QuotationItem", "item_tedad", "item_code", listItem, idref);
+            bool res = clsDB.BeforeGetInventoryItem(Header["CustomerId"].ToInt().ToString(), "itm_id", "stock_id", "QUI_id", "PRG_QuotationItem", "value", "item_code", listItem, idref);
+            if (res == false)
+            {
+                MessageError = "موجودی کالاهای ("+clsDB.CheckInventory+") کافی نمیباشد";
+                clsDB.CheckInventory = "";
+            }
+            return res;
         }
     }
 }

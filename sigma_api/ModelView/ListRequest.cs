@@ -8,5 +8,6 @@ namespace sigma_api.ModelView
     public class ListRequest // این مدل ویو برای دریافت شماره صفحه 
     {
         public int page_number { get; set; }
+        public string? Search { get; set; }
     }
 }

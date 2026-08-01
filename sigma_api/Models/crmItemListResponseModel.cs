@@ -30,5 +30,6 @@ namespace sigma_api.Models
         public int IS_GroupStock { get; set; }
         public string GRS_GroupName { get; set; }
         public string Image { get; set; }
+        public int InventoryStock { get; set; }
     }
 }

@@ -21,11 +21,13 @@ namespace sigma_api.ModelView
             public string alarm_time { get; set; }
             public string alarm_desc { get; set; }
             public string location { get; set; }
+           
         }
         public class androidUpdateCallLocationRequestModelView
         {
             public string location { get; set; }
         }
+       
     }
 }
 

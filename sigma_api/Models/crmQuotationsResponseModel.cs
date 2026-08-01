@@ -7,41 +7,32 @@ namespace sigma_api.Models
 {
     public class crmQuotationsResponseModel // اطلاعات یک پیش فاکتور
     {
-        public int QU_id { get; set; } // شناسه پیش فاکتور
-        public int QU_no { get; set; } // شماره پیش فاکتور
-        public int? RB_no { get; set; } // شماره درخواست خرید
-        public string QU_date { get; set; }
-        //public string CycleFormDetailState { get; set; }
-        public string Customer { get; set; } // نام مشتری
-        public string Supplier { get; set; } // تامین کننده
+        public int FormID { get; set; } // شناسه خرید
+        public bool Pm { get; set; } // پیام دارد یا نه
+        public string StatePay { get; set; } // وضعیت خرید
+        public bool TypeRequest { get; set; }//نوع درخواست
+        public string dateForm { get; set; } // تاریخ خرید
+        public string NumberForm { get; set; } // شماره خرید
         public string TypeSale { get; set; } // نوع فروش - نقدری / اعتباری / نقدی اعتباری
-        public string TypePayment { get; set; } // نوع پرداخت - روش پرداخت
+        public decimal Price { get; set; } // مبلغ کل
+        public decimal Discount { get; set; } // تخفیف
+        public decimal Tax { get; set; } // مالیات
         public decimal NetPrice { get; set; } // مبلغ خالص
-        public string City { get; set; } // شهر مقصد
-        public decimal value { get; set; } // تعداد کل
-        public decimal valueSecondary { get; set; } // تعداد کل ثانویه
-        public string SalesExpert { get; set; }//کارشناس فروش
-        public string Status { get; set; } // وضعیت
-        public int StatusId { get; set; } //شناسه وضعیت 
-        public int TypeSaleId { get; set; } // شناسه نوع فروش
-        public int DLCode { get; set; } // کد تفصیلی
-        public int SalesExpertId { get; set; } // شناسه کارشناس فروش
-        public int CustomerId { get; set; } // شناسه مشتری 
-        public string Tell { get; set; } // شماره تماس مشتری
-        public Cycle CycleStatus { get; set; }
+        public int TypeForm { get; set; } // ثبت شده یا تایید شده
+        public bool Portal { get; set; } // شناسه پورتال/سی ارم
+       // public Cycle CycleStatus { get; set; }
         public Detail[] Details { get; set; }
-
-        public class Cycle // چرخه پیش فاکتور
-        {
-            public int? RB_id { get; set; }
-            public int? RB_status { get; set; }
-            public int? QU_id { get; set; }
-            public int? QU_status { get; set; }
-            public int? INV_id { get; set; }
-            public int? INV_status { get; set; }
-            public int? LD_id { get; set; }
-            public int? LD_status { get; set; }
-        }
+        //public class Cycle // چرخه پیش فاکتور
+        //{
+        //    public int? RB_id { get; set; }
+        //    public int? RB_status { get; set; }
+        //    public int? QU_id { get; set; }
+        //    public int? QU_status { get; set; }
+        //    public int? INV_id { get; set; }
+        //    public int? INV_status { get; set; }
+        //    public int? LD_id { get; set; }
+        //    public int? LD_status { get; set; }
+        //}
         public class Detail // اطلاعات کالای پیش فاکتور
         {
             public int id { get; set; } // شناسه ایتم پیش فاکتور

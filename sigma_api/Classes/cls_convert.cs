@@ -13,7 +13,10 @@ namespace sigma_api.Classes
             int i = 0;
             try
             {
-                i = Convert.ToInt32(value);
+                if (value != null && value != DBNull.Value)
+                {
+                    i = Convert.ToInt32(value);
+                }
             }
             catch
             {
@@ -27,7 +30,10 @@ namespace sigma_api.Classes
             decimal i = 0;
             try
             {
-                i = Convert.ToDecimal(value);
+                if (value != null && value != DBNull.Value)
+                {
+                    i = Convert.ToDecimal(value);
+                }
             }
             catch
             {
@@ -40,7 +46,10 @@ namespace sigma_api.Classes
             double i = 0;
             try
             {
-                i = Convert.ToDouble(value);
+                if (value != null && value != DBNull.Value)
+                {
+                    i = Convert.ToDouble(value);
+                }
             }
             catch
             {
@@ -53,7 +62,10 @@ namespace sigma_api.Classes
             long i = 0;
             try
             {
-                i = Convert.ToInt64(value);
+                if (value != null && value != DBNull.Value)
+                {
+                    i = Convert.ToInt64(value);
+                }
             }
             catch
             {
@@ -64,12 +76,15 @@ namespace sigma_api.Classes
 
         public static bool ToBoolean(this object value)
         {
-            if (value.ToString().IsNumeric())
+            if (value != null && value != DBNull.Value && value.ToString().IsNumeric())
                 value = value.ToInt();
             bool tf = false;
             try
             {
-                tf = Convert.ToBoolean(value);
+                if (value != null && value != DBNull.Value)
+                {
+                    tf = Convert.ToBoolean(value);
+                }
             }
             catch
             {
@@ -108,11 +123,18 @@ namespace sigma_api.Classes
         {
             try
             {
-                if (value.ToString().Length > 0 && string.IsNullOrEmpty(value.ToString()) == false)
+                if (value != null)
                 {
-                    return value.ToString();
+                    if (value.ToString().Length > 0 && string.IsNullOrEmpty(value.ToString()) == false)
+                    {
+                        return value.ToString();
+                    }
+                    else
+                        return null;
+
                 }
-                return null;
+                else return null;
+
             }
             catch (Exception)
             {

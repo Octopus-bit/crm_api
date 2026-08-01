@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Data;
 using System.Data.SqlClient;
+using System.Collections.Concurrent;
 using sigma_api.Classes;
 
 namespace sigma_api.Security
@@ -11,6 +12,9 @@ namespace sigma_api.Security
     public class TokenManagement // کلاس احراز توکن
     {
         public static bool IsCreated = false;
+        private static readonly ConcurrentDictionary<string, (DataTable Data, DateTime Expires)> _tokenCache
+            = new ConcurrentDictionary<string, (DataTable, DateTime)>(StringComparer.Ordinal);
+        private static readonly TimeSpan TokenCacheDuration = TimeSpan.FromMinutes(5);
         public static string WriteToken(int UserId, int TypeToken) //این تابع توکن جدیدی برای کاربر ایجاد میکند
         {
             string token = null;
@@ -42,8 +46,6 @@ namespace sigma_api.Security
 
         public static DataTable ReadToken(string token) // تابع خواندن توکن از دیتابیس و دریافت اطلاعات یوزر مربوط به توکن
         {
-            cls_public cp = new cls_public();
-
             if (!string.IsNullOrEmpty(token))
             {
                 if (token.StartsWith("Bearer "))
@@ -51,13 +53,29 @@ namespace sigma_api.Security
                     token = token.Substring("Bearer ".Length);
                 }
 
+                if (_tokenCache.TryGetValue(token, out var cached) && cached.Expires > DateTime.UtcNow)
+                    return cached.Data;
+
+                cls_public cp = new cls_public();
+
                 SqlParameter[] parameters =
                 {
                     new SqlParameter("token",token),
                 };
-                return cp.select_row("API_GetUserByToken", parameters);
+                var result = cp.select_row("API_GetUserByToken", parameters);
+                if (result != null && result.Rows.Count > 0)
+                {
+                    _tokenCache[token] = (result, DateTime.UtcNow.Add(TokenCacheDuration));
+                }
+                return result;
             }
             return null;
+        }
+
+        public static void InvalidateToken(string token)
+        {
+            if (!string.IsNullOrEmpty(token))
+                _tokenCache.TryRemove(token, out _);
         }
     }
 }

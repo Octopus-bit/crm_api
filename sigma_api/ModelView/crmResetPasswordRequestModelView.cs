@@ -8,7 +8,10 @@ namespace sigma_api.ModelView
 {
     public class crmResetPasswordRequestModelView
     {
-        [Required]
+        //[Required]
+
+        //public string mobile { get; set; }
         public string new_password { get; set; }
+
     }
 }

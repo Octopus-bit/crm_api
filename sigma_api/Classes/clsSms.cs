@@ -116,7 +116,7 @@ namespace sigma_api.Classes
                 model.Id = new Random().Next(999999).ToString();
                 var json = JsonConvert.SerializeObject(model);
                 var data = new StringContent(json, Encoding.UTF8, "application/json");
-
+                //http://134.255.201.109/webservice/service.asmx
                 var url = path + "/api/Send";
                 using (var client = new HttpClient())
                 {

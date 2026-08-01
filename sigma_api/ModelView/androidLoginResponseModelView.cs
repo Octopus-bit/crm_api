@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using sigma_api.Classes;
 using sigma_api.ModelView;
 using sigma_api.Models;
+using System.Data;
 
 namespace sigma_api.ModelView
 {

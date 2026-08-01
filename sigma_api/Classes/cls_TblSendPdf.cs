@@ -18,7 +18,6 @@ namespace sigma_api.Classes
             try
             {
                 string id = null;
-                SqlConnection con = connct;
                 string[] path = url.Split(@"\");
                 if (path[path.Length - 1].EndsWith(".pdf"))
                 {
@@ -37,7 +36,6 @@ namespace sigma_api.Classes
             {
                 return "Error : " + ex.Message;
             }
-
         }
 
         public DataTable TblSendPdf_SelectLocalUrlByid(string id)

@@ -32,6 +32,11 @@ namespace sigma_api.Classes
         /// </summary>
         Duplicate = 204,
         /// <summary>
+        /// رکوردی یافت نشد
+        /// </summary>
+        NotFound = 205,
+
+        /// <summary>
         /// عدم احراز هویت
         /// </summary>
         Authentication = 100,
@@ -54,9 +59,9 @@ namespace sigma_api.Classes
         /// <summary>
         /// پایگاه داده در دسترس نیست
         /// </summary>
-        DBO_Unavailable = 301
+        DBO_Unavailable = 301,
     }
-     // نوع توکن ها
+    // نوع توکن ها
     public enum TypeToken : int
     {
         /// <summary>

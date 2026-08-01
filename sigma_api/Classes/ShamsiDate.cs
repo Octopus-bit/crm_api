@@ -6,12 +6,8 @@ using System.Globalization;
 
 namespace sigma_api.Classes
 {
-    class ShamsiDate
+    public class ShamsiDate
     {
-        public ShamsiDate()
-        {
-        }
-
         
         void sample()
         {
@@ -528,7 +524,7 @@ namespace sigma_api.Classes
                 str[2] = "0" + str[2];
             return str[0] + '/' + str[1] + '/' + str[2];
         }
-        public static DateTime Shamsi2Miladi(string _date)
+        static public DateTime Shamsi2Miladi(string _date)
         {
             PersianCalendar p = new PersianCalendar();
             System.Globalization.PersianCalendar pc = new PersianCalendar();

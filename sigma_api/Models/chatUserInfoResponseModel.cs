@@ -14,7 +14,7 @@ namespace sigma_api.Models
         public int unReadCount { get; set; } // تعداد پیام خوانده نشده
         public string email { get; set; } // ایمیل
         public string phone { get; set; } // شماره تماس
-        public string? avatar { get; set; } // لینک پروفایل کاربر
+        public string? Image { get; set; } // لینک پروفایل کاربر
         public string bio { get; set; } // بیو کاربر
         public int status { get; set; } // 0 = offline / 1 = online / 2 = away
         public string statusName { get; set; } // (وضعیت کاربر (افلاین ، انلاین ، نامشخص

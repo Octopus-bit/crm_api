@@ -17,6 +17,7 @@ using sigma_api.Classes;
 using sigma_api.Models;
 using sigma_api.ModelView;
 using sigma_api.Security;
+using Microsoft.AspNetCore.Hosting.Server;
 
 namespace sigma_api.Controllers
 {
@@ -59,8 +60,9 @@ namespace sigma_api.Controllers
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/get-info-customer/{mobile?}")]
-        public string getInfoCustomer([Required] string mobile)
+        public string getInfoCustomer(string mobile)
         {
+
             messagebase mes = new messagebase();
             if (string.IsNullOrEmpty(mobile))
             {
@@ -148,10 +150,15 @@ namespace sigma_api.Controllers
                 generalSystemSettingsResponseModel system = new generalSystemSettingsResponseModel()
                 {
                     Company = clsProperties.GetPropertise("txtnameforoshgah").ToString(),
-                    Logo = ImageConverter(string.IsNullOrEmpty(clsProperties.GetPropertise("logo").ToString())?null:(byte[])clsProperties.GetPropertise("logo"), "logo.png"),
+                    Logo = ImageConverter(string.IsNullOrEmpty(clsProperties.GetPropertise("logo").ToString()) ? null : (byte[])clsProperties.GetPropertise("logo"), "logo.png"),
                     Version = typeof(Program).Assembly.GetName().Version?.ToString(),
                     Column_Unit2 = clsProperties.GetPropertise("SubunitQuotation").ToBoolean(),
                     ExpirationQuotations = clsProperties.GetPropertise("expireddayQuotation").ToInt(),
+                    DefualtTasfiePortal = clsProperties.GetPropertise("DefualtTasfiePortal").ToInt(),
+                    insertbuyPortal = clsProperties.GetPropertise("insertbuyPortal").ToInt(),
+                    ShowPictureItemPortal = clsProperties.GetPropertise("ShowPictureItemPortal").ToBoolean(),
+                    ItemAddition1 = clsProperties.GetPropertise("ItemAdition1").ToString(),
+                    ItemAddition2 = clsProperties.GetPropertise("ItemAdition2").ToString(),
                     Sidebar = sidebar
                 };
                 response_SystemSettings = new generalSystemSettingsResponseModelView(system);
@@ -183,6 +190,7 @@ namespace sigma_api.Controllers
             int UserId = HttpContext.Items["UserId"].ToInt();
             if (cp.command($"UPDATE dbo.API_Tokens SET tk_AtCreate = GETDATE()-1 WHERE tk_Token = '{token}' and tk_UserIdRef = {UserId}"))
             {
+                TokenManagement.InvalidateToken(token);
                 return messagebase.messages(true, ErrorCode.Created.GetHashCode(), "Token successfully revoked.");
             }
             else

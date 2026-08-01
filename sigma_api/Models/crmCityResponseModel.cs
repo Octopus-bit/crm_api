@@ -9,5 +9,6 @@ namespace sigma_api.Models
     {
         public int Id { get; set; }
         public string Title { get; set; }
+        public int Parent { get; set; }
     }
 }

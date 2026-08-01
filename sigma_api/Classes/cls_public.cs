@@ -2,11 +2,16 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal;
+using Microsoft.Graph.Models;
 using sigma_api.ModelView;
+using static iText.IO.Image.Jpeg2000ImageData;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 
 namespace sigma_api.Classes
@@ -16,6 +21,7 @@ namespace sigma_api.Classes
         SqlConnection _con;
         SqlDataAdapter _dataAdapter;
         SqlCommand _command;
+        private const int CommandTimeoutSeconds = 180;
         public static messagebase sqlError = new messagebase();
         public cls_public()
         {
@@ -29,7 +35,6 @@ namespace sigma_api.Classes
             }
             catch (Exception e)
             {
-
                 sqlError.success = false;
                 sqlError.message = "پایگاه داده در دسترس نیست";
             }
@@ -39,7 +44,7 @@ namespace sigma_api.Classes
         {
             return _con;
         }
-        
+
         public void close()
         {
             if (_con.State == ConnectionState.Open)
@@ -53,12 +58,53 @@ namespace sigma_api.Classes
             return _con.BeginTransaction(name);
         }
 
+        private void CloseConnectionIfIdle(SqlTransaction transaction = null)
+        {
+            if (transaction == null && _con.State == ConnectionState.Open)
+                _con.Close();
+        }
+        public DateTime GetDateTimeInvariantCulture(SqlTransaction transaction = null)
+        {
+            DateTime getdate = new DateTime();
+            SqlCommand cmdLog = new SqlCommand("", _con);
+            cmdLog.Transaction = transaction;
+            cmdLog.CommandType = CommandType.Text;
+            cmdLog.CommandTimeout = CommandTimeoutSeconds;
+            cmdLog.CommandText = "Select getdate()";
+            try
+            {
+                if (_con.State != ConnectionState.Open)
+                {
+                    _con.Open();
+                }
+
+                //string getdatee = cmdLog.ExecuteScalar().ToString();
+                DateTime dateFromDb = (DateTime)cmdLog.ExecuteScalar();
+                string getdatee = dateFromDb.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                getdate = Convert.ToDateTime(getdatee);
+                CloseConnectionIfIdle(transaction);
+                getdate = Convert.ToDateTime(getdatee);
+
+            }
+            catch
+            {
+                CloseConnectionIfIdle(transaction);
+
+            }
+            finally
+            {
+                CloseConnectionIfIdle(transaction);
+
+            }
+            return getdate;
+        }
         public DateTime GetDateTime(SqlTransaction transaction = null)
         {
             DateTime getdate = new DateTime();
             SqlCommand cmdLog = new SqlCommand("", _con);
             cmdLog.Transaction = transaction;
             cmdLog.CommandType = CommandType.Text;
+            cmdLog.CommandTimeout = CommandTimeoutSeconds;
             cmdLog.CommandText = "Select getdate()";
             try
             {
@@ -68,193 +114,245 @@ namespace sigma_api.Classes
                 }
 
                 string getdatee = cmdLog.ExecuteScalar().ToString();
-                if (_con.State == ConnectionState.Open)
-                {
-                    _con.Close();
-                }
+                CloseConnectionIfIdle(transaction);
                 getdate = Convert.ToDateTime(getdatee);
 
             }
             catch
             {
-                if (_con.State == ConnectionState.Open)
-                {
-                    _con.Close();
-                }
+                CloseConnectionIfIdle(transaction);
 
             }
             finally
             {
-                if (_con.State == ConnectionState.Open)
-                {
-                    _con.Close();
-                }
+                CloseConnectionIfIdle(transaction);
 
             }
             return getdate;
         }
         public DataTable select(string StoredProcedure, SqlTransaction transaction = null)
         {
-            DataTable dt = new DataTable();
-            _command = new SqlCommand(StoredProcedure, _con);
-            _command.CommandType = CommandType.StoredProcedure;
-            _command.Transaction = transaction;
-            _dataAdapter = new SqlDataAdapter(_command);
-            try
+            using (SqlCommand _command = new SqlCommand(StoredProcedure, _con))
             {
-                if (_con.State != ConnectionState.Open)
+                DataTable dt = new DataTable();
+                _command.CommandType = CommandType.StoredProcedure;
+                _command.CommandTimeout = CommandTimeoutSeconds;
+                _command.Transaction = transaction;
+                _dataAdapter = new SqlDataAdapter(_command);
+                try
                 {
-                    _con.Open();
+                    if (_con.State != ConnectionState.Open)
+                    {
+                        _con.Open();
+                    }
+                    _dataAdapter.Fill(dt);
+                    return dt;
                 }
-                _command.ExecuteNonQuery();
-                _dataAdapter.Fill(dt);
-                return dt;
+                catch (Exception ex)
+                {
+                    _con.Close();
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                    return null;
+                }
             }
-            catch (Exception ex)
-            {
-                if (sqlError.success)
-                    sqlError.message = ex.Message;
-                return null;
-            }
+
         }
 
         public DataTable select_row(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
-            DataTable dt = new DataTable();
-            _command = new SqlCommand(StoredProcedure, _con);
-            _command.CommandType = CommandType.StoredProcedure;
-            _command.Transaction = transaction;
-            _dataAdapter = new SqlDataAdapter(_command);
-            foreach (SqlParameter parameter in parameters)
+            using (SqlCommand _command = new SqlCommand(StoredProcedure, _con))
             {
-                _command.Parameters.Add(parameter);
-            }
-            try
-            {
-                if (_con.State != ConnectionState.Open)
+
+                DataTable dt = new DataTable();
+                // _command = new SqlCommand(StoredProcedure, _con);
+                _command.CommandType = CommandType.StoredProcedure;
+                _command.CommandTimeout = CommandTimeoutSeconds;
+                _command.Transaction = transaction;
+                _dataAdapter = new SqlDataAdapter(_command);
+                foreach (SqlParameter parameter in parameters)
                 {
-                    try
-                    {
-                        _con.Open();
-                    }
-                    catch
-                    {
-                        sqlError.success = false;
-                    }
+                    _command.Parameters.Add(parameter);
                 }
-                _command.ExecuteNonQuery();
-                _dataAdapter.Fill(dt);
-                return dt;
-            }
-            catch (Exception ex)
-            {
-                if (sqlError.success)
-                    sqlError.message = ex.Message;
-                return null;
+                try
+                {
+                    if (_con.State != ConnectionState.Open)
+                    {
+                        try
+                        {
+                            _con.Open();
+                        }
+                        catch
+                        {
+                            sqlError.success = false;
+                        }
+                    }
+                    //_command.ExecuteNonQuery();
+                    _dataAdapter.Fill(dt);
+                    return dt;
+                }
+                catch (Exception ex)
+                {
+                    Classes.Library.WriteErrorLog(" StoredProcedure :" + StoredProcedure + ex.Message);
+                    _con.Close();
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                    return null;
+                }
             }
         }
 
         public DataTable select_command(string Select_command, SqlParameter[] parameters = null, SqlTransaction transaction = null)
         {
-            DataTable dt = new DataTable();
-            _command = new SqlCommand(Select_command, _con);
-            _command.Transaction = transaction;
-            _command.Parameters.Clear();
-            if (parameters != null)
-                foreach (SqlParameter parameter in parameters)
-                {
-                    _command.Parameters.Add(parameter);
-                }
-            _dataAdapter = new SqlDataAdapter(_command);
-            try
+            using (SqlCommand _command = new SqlCommand(Select_command, _con))
             {
-                if (_con.State != ConnectionState.Open)
+                DataTable dt = new DataTable();
+                _command.CommandTimeout = CommandTimeoutSeconds;
+                _command.Transaction = transaction;
+                _command.Parameters.Clear();
+                if (parameters != null)
+                    foreach (SqlParameter parameter in parameters)
+                    {
+                        _command.Parameters.Add(parameter);
+                    }
+                _dataAdapter = new SqlDataAdapter(_command);
+                try
                 {
-                    try
+                    if (_con.State != ConnectionState.Open)
                     {
-                        _con.Open();
+                        try
+                        {
+                            _con.Open();
+                        }
+                        catch
+                        {
+                            sqlError.success = false;
+                        }
                     }
-                    catch
-                    {
-                        sqlError.success = false;
-                    }
+                    _dataAdapter.Fill(dt);
+                    return dt;
                 }
-                _dataAdapter.Fill(dt);
-                return dt;
-            }
-            catch (Exception ex)
-            {
-                if (sqlError.success)
-                    sqlError.message = ex.Message;
-                return null;
+                catch (Exception ex)
+                {
+                    _con.Close();
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                    return null;
+                }
             }
         }
 
         public bool insert(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
             var result = 0;
-            _command = new SqlCommand(StoredProcedure, _con);
-            _command.CommandType = CommandType.StoredProcedure;
-            _command.Transaction = transaction;
-            foreach (SqlParameter parameter in parameters)
+            using (SqlCommand cmd = new SqlCommand(StoredProcedure, _con))
             {
-                _command.Parameters.Add(parameter);
-            }
-            try
-            {
-                if (_con.State != ConnectionState.Open)
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandTimeout = CommandTimeoutSeconds;
+                cmd.Transaction = transaction;
+                foreach (SqlParameter parameter in parameters)
                 {
-                    try
-                    {
-                        _con.Open();
-                    }
-                    catch
-                    {
-                        sqlError.success = false;
-                    }
+                    cmd.Parameters.Add(parameter);
                 }
-                result = _command.ExecuteNonQuery();
-            }
-            catch (Exception ex)
-            {
-                if (sqlError.success)
-                    sqlError.message = ex.Message;
-                throw;
+                try
+                {
+                    if (_con.State != ConnectionState.Open)
+                    {
+                        try
+                        {
+                            _con.Open();
+                        }
+                        catch
+                        {
+                            sqlError.success = false;
+                        }
+                    }
+                    result = cmd.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                    throw;
+                }
             }
             return result > 0;
         }
 
+        public string insert_DatabTable(string StoredProcedure, DataTable Dtinsert, SqlTransaction transaction = null)
+        {
+            string id = "";
+            using (SqlCommand _command = new SqlCommand(StoredProcedure, _con))
+            {
+                //_command = new SqlCommand(StoredProcedure, _con);
+                _command.CommandType = CommandType.StoredProcedure;
+                _command.CommandTimeout = CommandTimeoutSeconds;
+                _command.Transaction = transaction;
+                _command.Parameters.AddWithValue("@TableValidFile", Dtinsert);
+                try
+                {
+                    if (_con.State != ConnectionState.Open)
+                    {
+                        try
+                        {
+                            _con.Open();
+                        }
+                        catch
+                        {
+                            sqlError.success = false;
+                        }
+                    }
+
+                    id = Convert.ToString(_command.ExecuteScalar());
+                }
+                catch (Exception ex)
+                {
+                    _con.Close();
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                    return "0";
+                }
+            }
+            return id;
+        }
         public string insert_getid(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
-            string id;
-            _command = new SqlCommand(StoredProcedure, _con);
-            _command.CommandType = CommandType.StoredProcedure;
-            _command.Transaction = transaction;
-            foreach (SqlParameter parameter in parameters)
-            {
-                _command.Parameters.Add(parameter);
-            }
-            try
-            {
-                if (_con.State != ConnectionState.Open)
-                {
-                    try
-                    {
-                        _con.Open();
-                    }
-                    catch
-                    {
-                        sqlError.success = false;
-                    }
-                }
 
-                id = Convert.ToString(_command.ExecuteScalar());
-            }
-            catch (Exception ex)
+            string id = "";
+            using (SqlCommand _command = new SqlCommand(StoredProcedure, _con))
             {
-                if (sqlError.success)
-                    sqlError.message = ex.Message;
-                return "0";
+                _command.CommandType = CommandType.StoredProcedure;
+                _command.CommandTimeout = CommandTimeoutSeconds;
+                _command.Transaction = transaction;
+                foreach (SqlParameter parameter in parameters)
+                {
+                    _command.Parameters.Add(parameter);
+                }
+                try
+                {
+                    if (_con.State != ConnectionState.Open)
+                    {
+                        try
+                        {
+                            _con.Open();
+                        }
+                        catch
+                        {
+                            sqlError.success = false;
+                        }
+                    }
+
+                    id = Convert.ToString(_command.ExecuteScalar());
+                    CloseConnectionIfIdle(transaction);
+                }
+                catch (Exception ex)
+                {
+                    if (transaction == null)
+                        _con.Close();
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                    return "0";
+                }
             }
             return id;
         }
@@ -262,96 +360,166 @@ namespace sigma_api.Classes
         public bool update(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
             var result = 0;
-            _command = new SqlCommand(StoredProcedure, _con);
-            _command.CommandType = CommandType.StoredProcedure;
-            _command.Transaction = transaction;
-            foreach (SqlParameter parameter in parameters)
+
+            using (SqlCommand _command = new SqlCommand(StoredProcedure, _con))
             {
-                _command.Parameters.Add(parameter);
-            }
-            try
-            {
-                if (_con.State != ConnectionState.Open)
+                //_command = new SqlCommand(StoredProcedure, _con);
+                _command.CommandType = CommandType.StoredProcedure;
+                _command.CommandTimeout = CommandTimeoutSeconds;
+                _command.Transaction = transaction;
+                foreach (SqlParameter parameter in parameters)
                 {
-                    try
-                    {
-                        _con.Open();
-                    }
-                    catch
-                    {
-                        sqlError.success = false;
-                    }
+                    _command.Parameters.Add(parameter);
                 }
-                result = _command.ExecuteNonQuery();
+                try
+                {
+                    // Classes.Library.WriteErrorLog("100:");
+                    if (_con.State != ConnectionState.Open)
+                    {
+                        try
+                        {
+                            _con.Open();
+                            //Classes.Library.WriteErrorLog("101:");
+
+                        }
+                        catch
+                        {
+                            sqlError.success = false;
+                        }
+                    }
+                    //Classes.Library.WriteErrorLog("102:");
+
+                    result = _command.ExecuteNonQuery();
+                    CloseConnectionIfIdle(transaction);
+                }
+                catch (Exception ex)
+                {
+                    if (transaction == null)
+                        _con.Close();
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                    Console.WriteLine(ex.Message);
+                }
             }
-            catch (Exception ex)
+            return result > 0;
+        }
+
+        public bool updateDatatable(string StoredProcedure, SqlParameter[] parameters, string DtNameDatabase, DataTable Dt, SqlTransaction transaction = null)
+        {
+            var result = 0;
+
+            using (SqlCommand _command = new SqlCommand(StoredProcedure, _con))
             {
-                if (sqlError.success)
-                    sqlError.message = ex.Message;
-                Console.WriteLine(ex.Message);
+                //_command = new SqlCommand(StoredProcedure, _con);
+                _command.CommandType = CommandType.StoredProcedure;
+                _command.CommandTimeout = CommandTimeoutSeconds;
+                _command.Transaction = transaction;
+                //_command.Parameters.Clear();
+                _command.Parameters.AddWithValue(DtNameDatabase, Dt);
+                foreach (SqlParameter parameter in parameters)
+                {
+                    _command.Parameters.Add(parameter);
+                }
+                try
+                {
+                    if (_con.State != ConnectionState.Open)
+                    {
+                        try
+                        {
+                            _con.Open();
+
+                        }
+                        catch
+                        {
+                            sqlError.success = false;
+                        }
+                    }
+                    _command.ExecuteNonQuery();
+                    result = 2;
+                    CloseConnectionIfIdle(transaction);
+                }
+                catch (Exception ex)
+                {
+                    if (transaction == null)
+                        _con.Close();
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                    Console.WriteLine(ex.Message);
+                }
             }
             return result > 0;
         }
 
         public bool delete(string StoredProcedure, SqlParameter[] parameters, SqlTransaction transaction = null)
         {
-            var result = 0;
-            _command = new SqlCommand(StoredProcedure, _con);
-            _command.CommandType = CommandType.StoredProcedure;
-            _command.Transaction = transaction;
-            foreach (SqlParameter parameter in parameters)
+            bool result = false;
+            using (SqlCommand _command = new SqlCommand(StoredProcedure, _con))
             {
-                _command.Parameters.Add(parameter);
-            }
-            try
-            {
-                if (_con.State != ConnectionState.Open)
+                //_command = new SqlCommand(StoredProcedure, _con);
+                _command.CommandType = CommandType.StoredProcedure;
+                _command.CommandTimeout = CommandTimeoutSeconds;
+                _command.Transaction = transaction;
+                foreach (SqlParameter parameter in parameters)
                 {
-                    try
-                    {
-                        _con.Open();
-                    }
-                    catch
-                    {
-                        sqlError.success = false;
-                    }
+                    _command.Parameters.Add(parameter);
                 }
+                try
+                {
+                    if (_con.State != ConnectionState.Open)
+                    {
+                        try
+                        {
+                            _con.Open();
+                        }
+                        catch
+                        {
+                            sqlError.success = false;
+                        }
+                    }
 
-                result = _command.ExecuteNonQuery();
+                    result =Convert.ToBoolean( _command.ExecuteScalar());
+
+                }
+                catch (Exception ex)
+                {
+                    _con.Close();
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                }
             }
-            catch (Exception ex)
-            {
-                if (sqlError.success)
-                    sqlError.message = ex.Message;
-            }
-            return result > 0;
+            return result;//> 0;
         }
         public bool command(string command, SqlTransaction transaction = null) // تابع insert به همراه دریافت لیست پارامتر
         {
             var result = 0;
-            _command = new SqlCommand(command, _con);
-            _command.CommandType = CommandType.Text;
-            _command.Transaction = transaction;
-            _command.Parameters.Clear();
-            try
+            using (SqlCommand _command = new SqlCommand(command, _con))
             {
-                if (_con.State != ConnectionState.Open)
+                //_command = new SqlCommand(command, _con);
+                _command.CommandType = CommandType.Text;
+                _command.CommandTimeout = CommandTimeoutSeconds;
+                _command.Transaction = transaction;
+                _command.Parameters.Clear();
+                try
                 {
-                    try
+                    if (_con.State != ConnectionState.Open)
                     {
-                        _con.Open();
+                        try
+                        {
+                            _con.Open();
+                        }
+                        catch
+                        {
+                            sqlError.success = false;
+                        }
                     }
-                    catch
-                    {
-                        sqlError.success = false;
-                    }
+                    result = _command.ExecuteNonQuery();
                 }
-                result = _command.ExecuteNonQuery();
-            }
-            catch (Exception ex)
-            {
-                if (sqlError.success)
-                    sqlError.message = ex.Message;
+                catch (Exception ex)
+                {
+                    _con.Close();
+                    if (sqlError.success)
+                        sqlError.message = ex.Message;
+                }
             }
             return result > 0;
         }

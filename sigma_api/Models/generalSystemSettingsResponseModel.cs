@@ -12,6 +12,11 @@ namespace sigma_api.Models
         public string Version { get; set; } // ورژن api
         public int ExpirationQuotations { get; set; } // تعداد روز انقضای پیش فاکتور
         public bool Column_Unit2 { get; set; } // ایا ستون واحد دوم نمایش داده شود ؟
+        public int DefualtTasfiePortal { get; set; } // پیش فرض نحوه تسویه
+        public int insertbuyPortal { get; set; } // نوع ثبت پورتال پیش فاکتور یا درخواست خرید
+        public bool ShowPictureItemPortal { get; set; } // نمایش یا عدم نمایش تصویر کالا در پورتال
+        public string ItemAddition1 { get; set; } // فیلد اضافه1 کالا
+        public string ItemAddition2 { get; set; } // فیلد اضافه2 کالا
 
         public clsSidebar Sidebar { get; set; } // سایدبار
         public class clsSidebar

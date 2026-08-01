@@ -14,11 +14,25 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.Internal;
 using sigma_api.Classes;
+using System.Linq;
 
 namespace sigma_api.classes
 {
     class clsGlobal
     {
+        [ThreadStatic]
+        private static cls_public _threadCp;
+
+        private static cls_public cp
+        {
+            get
+            {
+                if (_threadCp == null)
+                    _threadCp = new cls_public();
+                return _threadCp;
+            }
+        }
+
         private static string DataMali;
         private static int reservesanad;
         private static DateTime DTPeriodType;
@@ -26,15 +40,40 @@ namespace sigma_api.classes
         private static ArrayList Arraycreditlimit;
         private static string stock2 = "";
         public static DataTable DTSEllLimited;
-        private static cls_public cp = new cls_public();
-        private static string FiscalYearNowStr = cp.GetDateTime().Year.ToString();
+        //private static string FiscalYearNowStr = cp.GetDateTime().Year.ToString();
         public clsGlobal()
         {
             DataMali = clsProperties.GetPropertise("DataMali").ToString();
             reservesanad = clsProperties.GetPropertise("reservesanad").ToInt();
         }
-        
 
+        public static string StringSplitOptionsRemoveEmptyEntries(string Input)
+        {
+            string Reualt = "";
+            string Reualt2 = "";
+            string Reualt3 = "";
+            string[] words = Input.Split(
+                            new char[] { ' ' },
+                            StringSplitOptions.RemoveEmptyEntries
+                        );
+            foreach(string str in words)
+            {
+                Reualt2 = Reualt2 + " AND " + " dbo.ArabicPersion(itm.ITM_fullname) LIKE dbo.ArabicPersion(N'%" + str + "%')";
+                Reualt3 = Reualt3 + " AND " + " itm.ITM_Code LIKE N'%" + str + "%'";
+            }
+            if (!string.IsNullOrEmpty(Reualt2))
+                Reualt2 = Reualt2.Substring(4, Reualt2.Length - 4);
+            if (!string.IsNullOrEmpty(Reualt3))
+                Reualt3 = Reualt3.Substring(4, Reualt3.Length - 4);
+
+            //Reualt2 = string.Join(" AND ",
+            //                words.Select(x => $" dbo.ArabicPersion(itm.ITM_fullname) LIKE dbo.ArabicPersion(N'%{x}%')"));
+            //Reualt3 = string.Join(" AND ",
+            //                words.Select(x => $" itm.ITM_Code LIKE N'%{x}%'"));
+            Reualt = "(" + Reualt2 + ")" + " OR " + "(" + Reualt3 + ")";
+
+            return Reualt;
+        }
         public static bool creditlimit(Int16 formLimited, int customer, string stock, int noeforosh, int nahvetasfie, decimal MetrajJari, decimal MoneyJari, bool TypeJari)
         {
             DTSEllLimited = new DataTable();
@@ -1341,7 +1380,7 @@ WHERE DLRef = (SELECT csT_dl FROM PRG_Customers WHERE cst_id = " + customer.ToSt
 
                 if (ccd_itemtype == "11")
                 {
-                    DataTable dtfiscalyear = classes.clsDB.GetFiscalYearNow(FiscalYearNowStr);
+                    DataTable dtfiscalyear = classes.clsDB.GetFiscalYearNow(classes.clsDB.GetFiscalYearNowStr());
                     string FiscalYearId = dtfiscalyear.Rows[0]["FiscalYearId"].ToString();
                     // صورت حساب مشتری
                     StrResualt = @"declare @year int

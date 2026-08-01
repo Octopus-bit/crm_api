@@ -8,6 +8,7 @@ using System.IO;
 using Microsoft;
 using System.IO.Compression;
 using sigma_api.ModelView;
+using System.Reflection;
 
 namespace sigma_api.Connection
 {
@@ -89,8 +90,19 @@ namespace sigma_api.Connection
                     destinationStream.Close();
             }
         }
+        private static string _cachedConnectionString;
+        private static readonly object _connectionLock = new object();
+
         private static string readConnectFile()
         {
+            if (_cachedConnectionString != null)
+                return _cachedConnectionString;
+
+            lock (_connectionLock)
+            {
+                if (_cachedConnectionString != null)
+                    return _cachedConnectionString;
+
             SqlConnection sqlConnection;
             string path = "", data = "", SNLARG = "";
             bool check = false;
@@ -102,16 +114,59 @@ namespace sigma_api.Connection
                 string Username = filee[1];
                 string Password = filee[2];
                 string DbName = filee[3];
-                connectionString = "Data Source=" + HostName + "; Initial Catalog=" + DbName  + "; User ID=" + Username + "; Password=" + Password + ";";
+                connectionString = "Data Source=" + HostName + "; Initial Catalog=" + DbName  + "; User ID=" + Username + "; Password=" + Password + ";Max Pool Size=300";
+
+                StreamWriter sw = null;
+                try
+                {
+                    string path333 = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\log";
+                    if (!Directory.Exists(path333))
+                        Directory.CreateDirectory(path333);
+
+                    sw = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + "\\log\\LogFile.txt", true);
+                    //sw.WriteLine(connectionString);
+                    sw.Flush();
+                    sw.Close();
+                }
+                catch
+                {
+                }
+
                 sqlConnection = new SqlConnection(connectionString);
                 try
                 {
                     sqlConnection.Open();
                     sqlConnection.Close();
-
+                    try
+                    {
+                        string path333 = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\log";
+                        if (!Directory.Exists(path333))
+                            Directory.CreateDirectory(path333);
+                        //sw = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + "\\log\\LogFile.txt", true);
+                        //sw.WriteLine(" Connect ok : ("+ connectionString+")");
+                        //sw.Flush();
+                        //sw.Close();
+                    }
+                    catch
+                    {
+                    }
                 }
                 catch (Exception ex)
                 {
+                    try
+                    {
+                        string path333 = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\log";
+                        if (!Directory.Exists(path333))
+                            Directory.CreateDirectory(path333);
+
+                        sw = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + "\\log\\LogFile.txt", true);
+                        sw.WriteLine(" Connect Failed : (" + ex.Message + ")"); 
+                        sw.Flush();
+                        sw.Close();
+                    }
+                    catch
+                    {
+                    }
                     Console.WriteLine("ارتباط با ديتابيس مقدور نمي باشد");
                 }
             }
@@ -119,7 +174,9 @@ namespace sigma_api.Connection
             {
                 Console.WriteLine("فايل اتصال به ديتابيس در مسير اجراي برنامه وجود ندارد");
             }
+            _cachedConnectionString = connectionString;
             return connectionString;
+            }
 
             /* try
              {

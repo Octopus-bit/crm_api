@@ -22,6 +22,12 @@ namespace sigma_api.ModelView
             code = ErrorCode.Send.GetHashCode();
             results = response;
         }
+        public crmItemListResponseModelView(CrmSendPdfModel response)
+        {
+            success = true;
+            code = ErrorCode.Send.GetHashCode();
+            results = response;
+        }
         public crmItemListResponseModelView(int errorCode, string errorMessage = null)
         {
             success = false;

@@ -1,4 +1,4 @@
-192.168.233.10
-sa
-sa@12345678
-SigmaCrm
+192.168.233.10\sepidar
+damavand
+damavand
+SigmaCrmCompany

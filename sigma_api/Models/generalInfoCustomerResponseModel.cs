@@ -20,7 +20,11 @@ namespace sigma_api.Models
         public string Address { get; set; }
         public int Status { get; set; }
         public int SalesExpert { get; set; }
+        
         public string SalesExpert_FullName { get; set; }
+        public int city { get; set; }
+        public string cityName { get; set; }
+        public string CustomersCode { get; set; }
         public datas[] Data { get; set; }
 
         public class datas
