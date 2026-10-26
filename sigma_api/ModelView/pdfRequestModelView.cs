@@ -8,5 +8,6 @@ namespace sigma_api.ModelView
     public class pdfRequestModelView
     {
         public string localurl { get; set; }
+        public byte[]? BytePdf { get; set; }
     }
 }

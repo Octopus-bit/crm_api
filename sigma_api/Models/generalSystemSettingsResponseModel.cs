@@ -17,7 +17,7 @@ namespace sigma_api.Models
         public bool ShowPictureItemPortal { get; set; } // نمایش یا عدم نمایش تصویر کالا در پورتال
         public string ItemAddition1 { get; set; } // فیلد اضافه1 کالا
         public string ItemAddition2 { get; set; } // فیلد اضافه2 کالا
-
+        public bool ShowPortalItemAdd1 { get; set; }//نمایش فیلد اضافه 1 به ای انبار 
         public clsSidebar Sidebar { get; set; } // سایدبار
         public class clsSidebar
         {

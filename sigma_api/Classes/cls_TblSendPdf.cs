@@ -37,7 +37,38 @@ namespace sigma_api.Classes
                 return "Error : " + ex.Message;
             }
         }
+        public string TblSendPdf_insertByte(byte[] ByteIn, string url)
+        {
+            try
+            {
+                SqlParameter[] parameters =
+                {
+            new SqlParameter("@id", SqlDbType.NVarChar, 100)
+            {
+                Value = url ?? (object)DBNull.Value
+            },
 
+            //new SqlParameter("@local_url", SqlDbType.NVarChar, 100)
+            //{
+            //    Value = url ?? (object)DBNull.Value
+            //},
+
+            new SqlParameter("@BytePdf", SqlDbType.VarBinary, -1)
+            {
+                Value = ByteIn ?? (object)DBNull.Value
+            }
+        };
+                
+                cp.insert("API_UpdateSendSmsPdf", parameters);
+                //cp.insert("PRG_TblSendPdf_insertByte", parameters);
+
+                return url;
+            }
+            catch (Exception ex)
+            {
+                return "Error : " + ex.Message;
+            }
+        }
         public DataTable TblSendPdf_SelectLocalUrlByid(string id)
         {
             SqlParameter[] parameters =
@@ -45,7 +76,22 @@ namespace sigma_api.Classes
                     new SqlParameter("id",id),
                 };
             DataTable dt = new DataTable();
+
             dt = cp.select_row("PRG_TblSendPdf_SelectRow", parameters);
+            if (dt.Rows.Count > 0)
+            return dt;
+            else
+                return null;
+        }
+        public DataTable TblSendPdf_SelectLocalUrlByteByid(string id)
+        {
+            SqlParameter[] parameters =
+                {
+                    new SqlParameter("id",id),
+                };
+            DataTable dt = new DataTable();
+            dt = cp.select_row("API_SelectSendSmsPdf", parameters);
+            //dt = cp.select_row("PRG_TblSendPdfByte_SelectRow", parameters);
             if (dt.Rows.Count > 0)
                 return dt;
             else

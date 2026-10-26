@@ -27,6 +27,15 @@ using System.Windows.Forms;
 using Microsoft.Graph.Models.Security;
 using System.Text.RegularExpressions;
 using System.Reflection;
+using iText.Html2pdf.Attach;
+using Microsoft.Graph.Models;
+using Autofac;
+using iText.Layout.Element;
+using Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal;
+using Microsoft.Kiota.Abstractions;
+using Azure.Core;
+using Azure;
+using static iText.IO.Image.Jpeg2000ImageData;
 
 namespace sigma_api.Controllers
 {
@@ -101,7 +110,7 @@ namespace sigma_api.Controllers
                     }
                     else
                     {
-                        string token = TokenManagement.WriteToken(user_Id, TypeToken.user.GetHashCode());
+                        string token = TokenManagement.WriteToken(user_Id, TypeToken.user.GetHashCode(),0);
                         if (TokenManagement.IsCreated)
                         {
                             string baseQuery = $"select TNZ_sharh from PRG_Propertise where TNZ_name='desc1customer' ";
@@ -406,7 +415,6 @@ namespace sigma_api.Controllers
             return JsonConvert.SerializeObject(response_login);
         }
 
-
         [HttpPost]
         [Route("api/[Controller]/Customers")]
         [Authorize]
@@ -445,7 +453,7 @@ namespace sigma_api.Controllers
                (mobile.Length == 13 & mobile.StartsWith("+9")) ||
                (mobile.Length == 11 & !mobile.StartsWith("09")) ||
                (mobile.Length < 11 & mobile.StartsWith("0") & !mobile.StartsWith("09")))
-            {
+               {
 
             }
             else
@@ -579,44 +587,47 @@ namespace sigma_api.Controllers
             int Type = request.type;
             int UserId = HttpContext.Items["UserId"].ToInt();
             string Duration = request.duration;
-
-            if (UserId == 0)
+            bool CheckInsCall = cp.commandBool("select ISNULL(USR_AddCall,0) from PRG_Users where USR_id = " + UserId);
+            if (CheckInsCall)
             {
-                messagebase m = new messagebase()
+                if (UserId == 0)
                 {
-                    code = ErrorCode.Authentication.GetHashCode(),
-                    success = false,
-                    message = "عدم احراز هویت"
-                };
-                return JsonConvert.SerializeObject(m);
-            }
+                    messagebase m = new messagebase()
+                    {
+                        code = ErrorCode.Authentication.GetHashCode(),
+                        success = false,
+                        message = "عدم احراز هویت"
+                    };
+                    return JsonConvert.SerializeObject(m);
+                }
 
-            checkmobile = true;
-            mobile = NormalizeMobile(request.mobile);
-            if (checkmobile)
-            {
-                SqlParameter[] parameters =
+                checkmobile = true;
+                mobile = NormalizeMobile(request.mobile);
+                if (checkmobile)
                 {
+                    SqlParameter[] parameters =
+                    {
                     new SqlParameter("USR_id", UserId),
                 };
-                //Classes.Library.WriteErrorLog(" mobile CallOnly :" + mobile);
+                    //Classes.Library.WriteErrorLog(" mobile CallOnly :" + mobile);
 
-                DataTable dt = cp.select_row("SPandroid_GetAccessUser", parameters);
-                SqlParameter[] parameters2 =
-                {
-                    new SqlParameter("Mobile", mobile),
-                };
-                DataTable dt_InfoCustomer = cp.select_row("API_GetCustomerInfoByMobile", parameters2);
-                if (dt_InfoCustomer.Rows.Count > 0)
-                {
-                   // Classes.Library.WriteErrorLog(" CustomersName CallOnly :" + dt_InfoCustomer.Rows[0]["fullname"].ToString());
-                    CustomerFullName = dt_InfoCustomer.Rows[0]["fullname"].ToString();
-                }
-                //else
-                //    Classes.Library.WriteErrorLog(" Customer mobile (" + mobile +") Notfound");
-
-                SqlParameter[] parameters3 =
+                    DataTable dt = cp.select_row("SPandroid_GetAccessUser", parameters);
+                    CheckInsCall = cp.command("select 4");
+                    SqlParameter[] parameters2 =
                     {
+                    new SqlParameter("Mobile", mobile),
+                }; 
+
+                    DataTable dt_InfoCustomer = cp.select_row("API_GetCustomerInfoByMobile", parameters2);
+                    if (dt_InfoCustomer.Rows.Count > 0)
+                    {
+                        // Classes.Library.WriteErrorLog(" CustomersName CallOnly :" + dt_InfoCustomer.Rows[0]["fullname"].ToString());
+                        CustomerFullName = dt_InfoCustomer.Rows[0]["fullname"].ToString();
+                    }
+                    //else
+                    //    Classes.Library.WriteErrorLog(" Customer mobile (" + mobile +") Notfound");
+                    SqlParameter[] parameters3 =
+                        {
                     new SqlParameter("CRC_createdate", CRC_createdate ?? (object)DBNull.Value),
                     new SqlParameter("CRC_TimeCall", CRC_TimeCall ?? (object)DBNull.Value),
                     new SqlParameter("mobile", mobile ?? (object)DBNull.Value),
@@ -625,64 +636,74 @@ namespace sigma_api.Controllers
                     new SqlParameter("user_id", UserId),
                     new SqlParameter("Duration", Duration ?? (object)DBNull.Value),
                 };
-                //Classes.Library.WriteErrorLog("Call Only : " + CRC_createdate.ToString() + " ** " +
-                //            CRC_TimeCall.ToString() + " ** " +
-                //            mobile.ToString() + " ** " //+
-                            //State.ToString() + " ** " +
-                            //Type.ToString() + " ** " +
-                            //UserId.ToString() + " ** " +
-                            //Duration.ToString() + " ** "
-                            //);
-                string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters3);
-                if (cls_public.sqlError.success == false)
-                {
-                    response_call = new androidCallResponseModelView(ErrorCode.DBO_Unavailable.GetHashCode(),
-                        cls_public.sqlError.message);
-                }
-                else
-                {
-                   // Classes.Library.WriteErrorLog("Call Only Succeed: " + CRC_createdate.ToString() + " ** " +
-                            //CRC_TimeCall.ToString() + " ** " +
-                            //mobile.ToString() + " ** " 
-                            //);
-                    if (id != "0" && dt.Rows.Count >= 1)
+                    //Classes.Library.WriteErrorLog("Call Only : " + CRC_createdate.ToString() + " ** " +
+                    //            CRC_TimeCall.ToString() + " ** " +
+                    //            mobile.ToString() + " ** " //+
+                    //State.ToString() + " ** " +
+                    //Type.ToString() + " ** " +
+                    //UserId.ToString() + " ** " +
+                    //Duration.ToString() + " ** "
+                    //);
+                    string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters3);
+                    if (cls_public.sqlError.success == false)
                     {
-                        androidCallResponseModel data = new androidCallResponseModel();
-                        data.id = id.ToInt();
-                        data.CustomersName = CustomerFullName;
-
-                        data.access = new androidCallResponseModel.data()
-                        {
-                            SoundRecord = dt.Rows[0]["USR_SoundRecord"].ToBoolean(),
-                            GpsLocation = dt.Rows[0]["USR_GpsLocation"].ToBoolean(),
-                        };
-                        response_call = new androidCallResponseModelView(data);
+                        response_call = new androidCallResponseModelView(ErrorCode.DBO_Unavailable.GetHashCode(),
+                            cls_public.sqlError.message);
                     }
                     else
                     {
-                        if (cls_public.sqlError.message == "NotFoundGuid")
-                            response_call = new androidCallResponseModelView(ErrorCode.BadRequest.GetHashCode(),
-                                $"{cls_public.sqlError.message}");
-                        else if (cls_public.sqlError.message == "DuplicateGuid")
-                            response_call = new androidCallResponseModelView(ErrorCode.Duplicate.GetHashCode(),
-                                $"{cls_public.sqlError.message}");
-                        else
-                            response_call = new androidCallResponseModelView(ErrorCode.DBO_Error.GetHashCode(),
-                                $"{cls_public.sqlError.message}");
+                        // Classes.Library.WriteErrorLog("Call Only Succeed: " + CRC_createdate.ToString() + " ** " +
+                        //CRC_TimeCall.ToString() + " ** " +
+                        //mobile.ToString() + " ** " 
+                        //);
+                        if (id != "0" && dt.Rows.Count >= 1)
+                        {
+                            androidCallResponseModel data = new androidCallResponseModel();
+                            data.id = id.ToInt();
+                            data.CustomersName = CustomerFullName;
 
+                            data.access = new androidCallResponseModel.data()
+                            {
+                                SoundRecord = dt.Rows[0]["USR_SoundRecord"].ToBoolean(),
+                                GpsLocation = dt.Rows[0]["USR_GpsLocation"].ToBoolean(),
+                            };
+                            response_call = new androidCallResponseModelView(data);
+                        }
+                        else
+                        {
+                            if (cls_public.sqlError.message == "NotFoundGuid")
+                                response_call = new androidCallResponseModelView(ErrorCode.BadRequest.GetHashCode(),
+                                    $"{cls_public.sqlError.message}");
+                            else if (cls_public.sqlError.message == "DuplicateGuid")
+                                response_call = new androidCallResponseModelView(ErrorCode.Duplicate.GetHashCode(),
+                                    $"{cls_public.sqlError.message}");
+                            else
+                                response_call = new androidCallResponseModelView(ErrorCode.DBO_Error.GetHashCode(),
+                                    $"{cls_public.sqlError.message}");
+
+                        }
                     }
+                    return JsonConvert.SerializeObject(response_call);
                 }
-                return JsonConvert.SerializeObject(response_call);
+                else
+                {
+                    messagebase mes = new messagebase();
+                    mes.success = false;
+                    mes.code = ErrorCode.Conflict.GetHashCode();
+                    mes.message = "شماره مشتری نامعتبر میباشد";
+                    return JsonConvert.SerializeObject(mes);
+                }
             }
             else
             {
+                return messagebase.messages(true, ErrorCode.Send.GetHashCode(), "به دلیل عدم مجوز ثبت تماس ، تماس مورد نظر در سی آرام ثبت نشد");
+
                 messagebase mes = new messagebase();
-                mes.success = false;
-                mes.code = ErrorCode.Conflict.GetHashCode();
-                mes.message = "شماره مشتری نامعتبر میباشد";
+                mes.success = true;
+                mes.code = ErrorCode.Send.GetHashCode();
+                mes.message = "به دلیل عد مجوز ثبت تماس ، تماس مورد نظر در سی ارام ثبت نشد";
                 return JsonConvert.SerializeObject(mes);
             }
-
         }
         bool checkmobile = true;
 
@@ -704,60 +725,65 @@ namespace sigma_api.Controllers
                     message = "عدم احراز هویت"
                 });
             }
-
-            // دسترسی‌های کاربر (یک بار)
-            SqlParameter[] parameters =
+            bool CheckInsCall = cp.commandBool("select ISNULL(USR_AddCall,0) from PRG_Users where USR_id = " + UserId);
+            if (CheckInsCall)
+            {
+                // دسترسی‌های کاربر (یک بار)
+                SqlParameter[] parameters =
             {
         new SqlParameter("USR_id", UserId),
-    };
-            //Classes.Library.WriteErrorLog(" SPandroid_GetAccessUser :" );
+            };
+                //Classes.Library.WriteErrorLog(" SPandroid_GetAccessUser :" );
 
-            DataTable dtAccess = cp.select_row("SPandroid_GetAccessUser", parameters);
-            var customerNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var request in requests)
-            {
-                try
+                DataTable dtAccess = cp.select_row("SPandroid_GetAccessUser", parameters);
+
+
+
+                var customerNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var request in requests)
                 {
-                    string CustomerFullName = "";
-                    checkmobile = true;
-                    //Classes.Library.WriteErrorLog("NormalizeMobile mobile: "+ request.mobile);
-                    string mobile = NormalizeMobile(request.mobile);
-                    // 
-                    if (checkmobile)
+                    try
                     {
-                        if (!customerNameCache.TryGetValue(mobile, out CustomerFullName))
+                        string CustomerFullName = "";
+                        checkmobile = true;
+                        //Classes.Library.WriteErrorLog("NormalizeMobile mobile: "+ request.mobile);
+                        string mobile = NormalizeMobile(request.mobile);
+                        // 
+                        if (checkmobile)
                         {
-                            SqlParameter[] parameters2 =
+                            if (!customerNameCache.TryGetValue(mobile, out CustomerFullName))
                             {
+                                SqlParameter[] parameters2 =
+                                {
                               new SqlParameter("Mobile", mobile),
                             };
 
-                            DataTable dt_InfoCustomer =
-                                cp.select_row("API_GetCustomerInfoByMobile", parameters2);
+                                DataTable dt_InfoCustomer =
+                                    cp.select_row("API_GetCustomerInfoByMobile", parameters2);
 
-                            if (dt_InfoCustomer.Rows.Count > 0)
-                            {
-                                CustomerFullName = dt_InfoCustomer.Rows[0]["fullname"].ToString();
+                                if (dt_InfoCustomer.Rows.Count > 0)
+                                {
+                                    CustomerFullName = dt_InfoCustomer.Rows[0]["fullname"].ToString();
+                                }
+                                else
+                                {
+                                    CustomerFullName = "";
+                                }
+                                customerNameCache[mobile] = CustomerFullName;
                             }
-                            else
+
+                            //if (!string.IsNullOrEmpty(CustomerFullName))
+                            //    Classes.Library.WriteErrorLog(" CustomersName List Mobile :" + CustomerFullName);
+                            //else
+                            //    Classes.Library.WriteErrorLog(" Customers List Mobile (" + mobile + ") Notfound");
+
+                            //Classes.Library.WriteErrorLog("Before Insert Call List Mobile: " + CustomerFullName);
+                            //Classes.Library.WriteErrorLog("request.state: " + request.state);
+                            //Classes.Library.WriteErrorLog("request.type: " + request.type);
+                            //Classes.Library.WriteErrorLog("user_id: " + UserId);
+
+                            SqlParameter[] parameters3 =
                             {
-                                CustomerFullName = "";
-                            }
-                            customerNameCache[mobile] = CustomerFullName;
-                        }
-
-                        //if (!string.IsNullOrEmpty(CustomerFullName))
-                        //    Classes.Library.WriteErrorLog(" CustomersName List Mobile :" + CustomerFullName);
-                        //else
-                        //    Classes.Library.WriteErrorLog(" Customers List Mobile (" + mobile + ") Notfound");
-                        
-                        //Classes.Library.WriteErrorLog("Before Insert Call List Mobile: " + CustomerFullName);
-                        //Classes.Library.WriteErrorLog("request.state: " + request.state);
-                        //Classes.Library.WriteErrorLog("request.type: " + request.type);
-                        //Classes.Library.WriteErrorLog("user_id: " + UserId);
-
-                        SqlParameter[] parameters3 =
-                        {
                             new SqlParameter("CRC_createdate", request.date ?? (object)DBNull.Value),
                             new SqlParameter("CRC_TimeCall", request.time ?? (object)DBNull.Value),
                             new SqlParameter("mobile", mobile ?? (object)DBNull.Value),
@@ -766,73 +792,68 @@ namespace sigma_api.Controllers
                             new SqlParameter("user_id", UserId),
                             new SqlParameter("Duration", request.duration ?? (object)DBNull.Value),
                         };
-                        
-                        string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters3);
 
-                        if (cls_public.sqlError.success == false)
-                        {
-                            response_call_all = new androidCallResponseAllModelView(
-                                    ErrorCode.DBO_Unavailable.GetHashCode(),
-                                    cls_public.sqlError.message
+                            string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters3);
 
-                            );
-                        }
-                        else if (id != "0" && dtAccess.Rows.Count >= 1)
-                        {
-                            androidCallResponseAllModel data = new androidCallResponseAllModel()
+                            if (cls_public.sqlError.success == false)
                             {
-                                id = id.ToInt(),
-                                LocalId = request.id,
-                                CustomersName = CustomerFullName,
-                            };
+                                response_call_all = new androidCallResponseAllModelView(
+                                        ErrorCode.DBO_Unavailable.GetHashCode(),
+                                        cls_public.sqlError.message
 
-                            responses.Add(data);
-    //                        Classes.Library.WriteErrorLog("Insert Call List Succeed: " + request.date.ToString() + " ** " +
-    //request.time.ToString() + " ** " +
-    //mobile.ToString() + " ** "
-                                //);
-                            //response_call_all = new androidCallResponseAllModelView(data);
+                                );
+                            }
+                            else if (id != "0" && dtAccess.Rows.Count >= 1)
+                            {
+                                androidCallResponseAllModel data = new androidCallResponseAllModel()
+                                {
+                                    id = id.ToInt(),
+                                    LocalId = request.id,
+                                    CustomersName = CustomerFullName,
+                                };
+
+                                responses.Add(data);
+                            }
+                            else
+                            {
+                                response_call_all = new androidCallResponseAllModelView(
+                                        ErrorCode.DBO_Error.GetHashCode(),
+                                        cls_public.sqlError.message
+                                );
+                            }
                         }
                         else
                         {
-    //                        Classes.Library.WriteErrorLog("Insert Call List Error: " + request.date.ToString() + " ** " +
-    //request.time.ToString() + " ** " +
-    //mobile.ToString() + " ** "
-    //                            );
-                            response_call_all = new androidCallResponseAllModelView(
-                                    ErrorCode.DBO_Error.GetHashCode(),
-                                    cls_public.sqlError.message
+                            response_call_all =
+                                new androidCallResponseAllModelView(
+                                    ErrorCode.BadRequest.GetHashCode(),
+                                    "شماره موبایل اعتبار ندارد"
+
                             );
                         }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        //Classes.Library.WriteErrorLog(" False :" + mobile);
+                        //Classes.Library.WriteErrorLog(" Insert Call List Error :" + ex.Message);
+
                         response_call_all =
                             new androidCallResponseAllModelView(
-                                ErrorCode.BadRequest.GetHashCode(),
-                                "شماره موبایل اعتبار ندارد"
+                                ErrorCode.DBO_Error.GetHashCode(),
+                                ex.Message
 
                         );
                     }
                 }
-                catch (Exception ex)
-                {
-                    //Classes.Library.WriteErrorLog(" Insert Call List Error :" + ex.Message);
-
-                    response_call_all =
-                        new androidCallResponseAllModelView(
-                            ErrorCode.DBO_Error.GetHashCode(),
-                            ex.Message
-
-                    );
-                }
+                //Classes.Library.WriteErrorLog(" responses.Count :" + responses.Count.ToString());
+                if (responses.Count > 0)
+                    response_call_all = new androidCallResponseAllModelView(responses);
             }
-            //Classes.Library.WriteErrorLog(" responses.Count :" + responses.Count.ToString());
-            if (responses.Count > 0)
-                response_call_all = new androidCallResponseAllModelView(responses);
-
+            else
+            {
+                return messagebase.messages(true, ErrorCode.Send.GetHashCode(), "به دلیل عدم مجوز ثبت تماس ، تماس های مورد نظر در سی آرام ثبت نشد");
+            }
             return JsonConvert.SerializeObject(response_call_all);
+           
         }
 
         [HttpPost]
@@ -970,7 +991,6 @@ namespace sigma_api.Controllers
 
             return JsonConvert.SerializeObject(responses[0]);
         }
-
 
         [HttpPost]
         [Route("api/[Controller]/call/UpdateReferralsummary/list/{call_id}/{ListItem}")]
@@ -1117,7 +1137,8 @@ namespace sigma_api.Controllers
         [Authorize]
         public string call([FromBody] List<androidCallBatchRequestModelView> request)
         {
-            bool check = true;
+
+                bool check = true;
             bool error = false;
             string CustomerFullName = "";
             int UserId = HttpContext.Items["UserId"].ToInt();
@@ -1129,77 +1150,79 @@ namespace sigma_api.Controllers
             {
                 return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "اطلاعات ارسال شده ناقص میباشد");
             }
-
-            var locationAddresses = new Dictionary<string, string>();
-            var customerNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var item in request)
+            bool CheckInsCall = cp.commandBool("select ISNULL(USR_AddCall,0) from PRG_Users where USR_id = " + UserId);
+            if (CheckInsCall)
             {
-                if (item.Description != null && !string.IsNullOrEmpty(item.Description.location))
-                    locationAddresses[item.guid] = ResolveBatchLocationAddress(item.Description.location);
-            }
-
-            SqlTransaction transaction = cp.Transaction("CallBatch");
-            List<androidCallBatchResponseModel> callBatch = new List<androidCallBatchResponseModel>();
-            foreach (androidCallBatchRequestModelView item in request)
-            {
-                try
+                var locationAddresses = new Dictionary<string, string>();
+                var customerNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var item in request)
                 {
+                    if (item.Description != null && !string.IsNullOrEmpty(item.Description.location))
+                        locationAddresses[item.guid] = ResolveBatchLocationAddress(item.Description.location);
+                }
 
-                    if (string.IsNullOrEmpty(item.guid))
+                SqlTransaction transaction = cp.Transaction("CallBatch");
+                List<androidCallBatchResponseModel> callBatch = new List<androidCallBatchResponseModel>();
+                foreach (androidCallBatchRequestModelView item in request)
+                {
+                    try
                     {
-                        check = false;
-                        break;
-                    }
-                    if (string.IsNullOrEmpty(item.mobile))
-                    {
-                        check = false;
-                        break;
-                    }
-                    if (string.IsNullOrEmpty(item.date))
-                    {
-                        check = false;
-                        break;
-                    }
-                    if (string.IsNullOrEmpty(item.time))
-                    {
-                        check = false;
-                        break;
-                    }
-                    if (string.IsNullOrEmpty(item.duration))
-                    {
-                        check = false;
-                        break;
-                    }
-                    if (string.IsNullOrEmpty(item.state.ToString()))
-                    {
-                        check = false;
-                        break;
-                    }
-                    if (string.IsNullOrEmpty(item.type.ToString()))
-                    {
-                        check = false;
-                        break;
-                    }
-                    checkmobile = true;
 
-                    string mobile = NormalizeMobile(item.mobile);
-                    if (checkmobile)
-                    {
-                        if (!customerNameCache.TryGetValue(item.mobile, out CustomerFullName))
+                        if (string.IsNullOrEmpty(item.guid))
                         {
-                            SqlParameter[] parameters2 =
+                            check = false;
+                            break;
+                        }
+                        if (string.IsNullOrEmpty(item.mobile))
+                        {
+                            check = false;
+                            break;
+                        }
+                        if (string.IsNullOrEmpty(item.date))
+                        {
+                            check = false;
+                            break;
+                        }
+                        if (string.IsNullOrEmpty(item.time))
+                        {
+                            check = false;
+                            break;
+                        }
+                        if (string.IsNullOrEmpty(item.duration))
+                        {
+                            check = false;
+                            break;
+                        }
+                        if (string.IsNullOrEmpty(item.state.ToString()))
+                        {
+                            check = false;
+                            break;
+                        }
+                        if (string.IsNullOrEmpty(item.type.ToString()))
+                        {
+                            check = false;
+                            break;
+                        }
+                        checkmobile = true;
+
+                        string mobile = NormalizeMobile(item.mobile);
+                        if (checkmobile)
+                        {
+                            if (!customerNameCache.TryGetValue(item.mobile, out CustomerFullName))
                             {
+                                SqlParameter[] parameters2 =
+                                {
                                 new SqlParameter("Mobile", item.mobile),
                             };
-                            DataTable dt_InfoCustomer = cp.select_row("API_GetCustomerInfoByMobile", parameters2, transaction);
-                            CustomerFullName = dt_InfoCustomer.Rows.Count > 0
-                                ? dt_InfoCustomer.Rows[0]["fullname"].ToString()
-                                : "";
-                            customerNameCache[item.mobile] = CustomerFullName;
-                        }
+                                DataTable dt_InfoCustomer = cp.select_row("API_GetCustomerInfoByMobile", parameters2, transaction);
+                                CustomerFullName = dt_InfoCustomer.Rows.Count > 0
+                                    ? dt_InfoCustomer.Rows[0]["fullname"].ToString()
+                                    : "";
+                                customerNameCache[item.mobile] = CustomerFullName;
+                            }
 
-                        SqlParameter[] parameters3 =
-                        {
+                            SqlParameter[] parameters3 =
+                            {
                     new SqlParameter("CRC_createdate", item.date ?? (object)DBNull.Value),
                     new SqlParameter("CRC_TimeCall", item.time ?? (object)DBNull.Value),
                     new SqlParameter("mobile", item.mobile ?? (object)DBNull.Value),
@@ -1208,31 +1231,29 @@ namespace sigma_api.Controllers
                     new SqlParameter("user_id", UserId),
                     new SqlParameter("Duration", item.duration ?? (object)DBNull.Value),
                 };
-                        string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters3, transaction);
-                        if (id != "0")
-                        {
-
-
-                            if (item.Description == null)
+                            string id = cp.insert_getid("SPandroid_CreateCall_insert", parameters3, transaction);
+                            if (id != "0")
                             {
-                                callBatch.Add(new androidCallBatchResponseModel()
+                                if (item.Description == null)
                                 {
-                                    status = true,
-                                    guid = item.guid,
-                                    CustomersName = CustomerFullName,
-                                    id = id.ToInt()
-                                });
-                            }
-                            else
-                            {
-                                string LocationAddress = "";
-                                if (item.Description != null && !string.IsNullOrEmpty(item.Description.location))
-                                {
-                                    locationAddresses.TryGetValue(item.guid, out LocationAddress);
-                                    LocationAddress = LocationAddress ?? "";
+                                    callBatch.Add(new androidCallBatchResponseModel()
+                                    {
+                                        status = true,
+                                        guid = item.guid,
+                                        CustomersName = CustomerFullName,
+                                        id = id.ToInt()
+                                    });
                                 }
-                                SqlParameter[] parameters =
+                                else
                                 {
+                                    string LocationAddress = "";
+                                    if (item.Description != null && !string.IsNullOrEmpty(item.Description.location))
+                                    {
+                                        locationAddresses.TryGetValue(item.guid, out LocationAddress);
+                                        LocationAddress = LocationAddress ?? "";
+                                    }
+                                    SqlParameter[] parameters =
+                                    {
                             new SqlParameter("CRC_id", id),
                             new SqlParameter("cammands", item.Description.commands ?? (object)DBNull.Value),
                             new SqlParameter("alarm_date", item.Description.alarm_date ?? (object)DBNull.Value),
@@ -1243,75 +1264,86 @@ namespace sigma_api.Controllers
 
                         };
 
-                                if (cp.update("SPandroid_CreateCall_update", parameters, transaction))
-                                {
-                                    callBatch.Add(new androidCallBatchResponseModel()
+                                    if (cp.update("SPandroid_CreateCall_update", parameters, transaction))
                                     {
-                                        status = true,
-                                        guid = item.guid,
-                                        CustomersName = CustomerFullName,
-                                        id = null,
-                                    });
-                                }
-                                else
-                                {
-                                    callBatch.Add(new androidCallBatchResponseModel()
+                                        callBatch.Add(new androidCallBatchResponseModel()
+                                        {
+                                            status = true,
+                                            guid = item.guid,
+                                            CustomersName = CustomerFullName,
+                                            id = null,
+                                        });
+                                    }
+                                    else
                                     {
-                                        status = true,
-                                        guid = item.guid,
-                                        CustomersName = CustomerFullName,
-                                        id = id.ToInt()
-                                    });
+                                        callBatch.Add(new androidCallBatchResponseModel()
+                                        {
+                                            status = true,
+                                            guid = item.guid,
+                                            CustomersName = CustomerFullName,
+                                            id = id.ToInt()
+                                        });
+                                    }
                                 }
+                            }
+                            else
+                            {
+                                callBatch.Add(new androidCallBatchResponseModel()
+                                {
+                                    status = false,
+                                    guid = item.guid,
+                                    CustomersName = CustomerFullName,
+                                    id = null
+                                });
                             }
                         }
                         else
                         {
-                            callBatch.Add(new androidCallBatchResponseModel()
-                            {
-                                status = false,
-                                guid = item.guid,
-                                CustomersName = CustomerFullName,
-                                id = null
-                            });
+                            messagebase mes = new messagebase();
+                            mes.success = false;
+                            mes.code = ErrorCode.Conflict.GetHashCode();
+                            mes.message = "شماره مشتری نامعتبر میباشد";
+                            return JsonConvert.SerializeObject(mes);
                         }
                     }
-                    else
+                    catch (Exception e)
                     {
-                        messagebase mes = new messagebase();
-                        mes.success = false;
-                        mes.code = ErrorCode.Conflict.GetHashCode();
-                        mes.message = "شماره مشتری نامعتبر میباشد";
-                        return JsonConvert.SerializeObject(mes);
+                        check = false;
+                        error = true;
+                        break;
                     }
                 }
-                catch (Exception e)
+                if (cls_public.sqlError.success == false)
+                    return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "پایگاه داده در دسترس نیست");
+                if (check)
                 {
-                    check = false;
-                    error = true;
-                    break;
+                    transaction.Commit();
+                    transaction.Dispose();
+                    response_callBatch = new androidCallBatchResponseModelView(callBatch);
+                    return JsonConvert.SerializeObject(response_callBatch);
                 }
-            }
-            if (cls_public.sqlError.success == false)
-                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "پایگاه داده در دسترس نیست");
-            if (check)
-            {
-                transaction.Commit();
-                transaction.Dispose();
-                response_callBatch = new androidCallBatchResponseModelView(callBatch);
-                return JsonConvert.SerializeObject(response_callBatch);
+                else
+                {
+                    transaction.Rollback();
+                    transaction.Dispose();
+                    if (error)
+                        if (cls_public.sqlError.message != null)
+                            return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "اطلاعات ارسال شده ناقص میباشد");
+                        else
+                            return messagebase.messages(false, ErrorCode.Conflict.GetHashCode(), "عملیات با موفقیت انجام نشد");
+                    else
+                        return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "اطلاعات ارسال شده ناقص میباشد");
+                }
             }
             else
             {
-                transaction.Rollback();
-                transaction.Dispose();
-                if (error)
-                    if (cls_public.sqlError.message != null)
-                        return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "اطلاعات ارسال شده ناقص میباشد");
-                    else
-                        return messagebase.messages(false, ErrorCode.Conflict.GetHashCode(), "عملیات با موفقیت انجام نشد");
-                else
-                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "اطلاعات ارسال شده ناقص میباشد");
+                return messagebase.messages(true, ErrorCode.Send.GetHashCode(), "به دلیل عد مجوز ثبت تماس ، تماس های مورد نظر در سی ارام ثبت نشد");
+
+                //messagebase mes = new messagebase();
+                //mes.success = true;
+                //mes.code = ErrorCode.Send.GetHashCode();
+                //mes.message = "به دلیل عد مجوز ثبت تماس ، تماس مورد نظر در سی ارام ثبت نشد";
+                //return JsonConvert.SerializeObject(mes);
             }
         }
 
@@ -1450,6 +1482,111 @@ namespace sigma_api.Controllers
             return JsonConvert.SerializeObject(mes);
         }
 
+        [HttpPost]
+        [Route("api/[Controller]/location/Insert/list")]
+        [Authorize]
+        public string locationInsertList([FromBody] List<androidLocationInertModelView> requests)
+        {
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            List<messagebase> responses = new();
+            if (requests == null || requests.Count == 0)
+            {
+                return JsonConvert.SerializeObject(new messagebase()
+                {
+                    success = false,
+                    code = ErrorCode.BadRequest.GetHashCode(),
+                    message = "لیست درخواست خالی است"
+                });
+            }
+            // Classes.Library.WriteErrorLog(" Update Call List :");
+
+            foreach (var request in requests)
+            {
+                messagebase mes = new();
+                try
+                {
+                    if (request.CustomersId == "")
+                        request.CustomersId = null;
+                    if (string.IsNullOrEmpty(request.Location))
+                    {
+                        mes.success = false;
+                        mes.code = ErrorCode.BadRequest.GetHashCode();
+                        mes.message = "لوکیشن نامعتبر است";
+                        responses.Add(mes);
+                        continue;
+                    }
+                    string LocationAddress = "";
+                    // Classes.Library.WriteErrorLog(" Update Call List :"); 
+                    if (!string.IsNullOrEmpty(request.Location))
+                    {
+                        try
+                        {
+                            var http = new HttpClient();
+                            var strloc = request.Location.Split(',');
+                            string lat = strloc[0];
+                            string lon = strloc[1];
+                            http.DefaultRequestHeaders.UserAgent
+                                .ParseAdd("SigmaLocation/1.0 (SigmaGroup1403@Gmail.com)");
+
+                            string url =
+                                $"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}";
+
+                            var response = http.GetStringAsync(url).Result;
+                            using var doc = JsonDocument.Parse(response);
+
+                            if (doc.RootElement.TryGetProperty("address", out var addressLoc))
+                            {
+                                string road = addressLoc.TryGetProperty("road", out var r) ? r.GetString() : "";
+                                string neighbourhood = addressLoc.TryGetProperty("neighbourhood", out var n) ? n.GetString() : "";
+                                string city = addressLoc.TryGetProperty("city", out var c) ? c.GetString() : "";
+                                string district = addressLoc.TryGetProperty("district", out var d) ? d.GetString() : "";
+                                string county = addressLoc.TryGetProperty("county", out var co) ? co.GetString() : "";
+                                string state = addressLoc.TryGetProperty("state", out var s) ? s.GetString() : "";
+                                string PostalCode = addressLoc.TryGetProperty("postcode", out var p) ? p.GetString() : "";
+                                string country = addressLoc.TryGetProperty("country", out var cn) ? cn.GetString() : "";
+
+                                //از ادرس مشتری ترکیب رشته مرتب و خوانا
+                                LocationAddress = $"{country},{state}, {county}, {district}, {neighbourhood},{road}, {city},  {PostalCode}";
+                            }
+
+                        }
+                        catch { }
+                    }
+                    SqlParameter[] parameters =
+                    {
+                        new SqlParameter("Userid", UserId ),
+                        new SqlParameter("CustomersId", request.CustomersId ?? (object)DBNull.Value),
+                        new SqlParameter("Createdate",request.CreateDate),
+                        new SqlParameter("location",  request.Location.TryString() ),
+                        new SqlParameter("LocationAddress", LocationAddress.TryString() ?? (object)DBNull.Value)
+                    };
+                    if (cp.update("SPandroid_CreateLocation_Insert", parameters))
+                    {
+                        mes.success = true;
+                        mes.code = 201;
+                        mes.message = "لوکیشن کاربر با موفقیت ذخیره شد";
+                        responses.Add(mes);
+                    }
+                    else
+                    {
+                        mes.success = true;
+                        mes.code = 201;
+                        mes.message = "لوکیشن یافت نشد";
+                        responses.Add(mes);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    mes.success = false;
+                    mes.code = 400;
+                    mes.message = ex.Message;
+                    responses.Add(mes);
+                }
+            }
+
+            return JsonConvert.SerializeObject(responses[0]);
+        }
+        
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/Citys")]
@@ -1596,6 +1733,54 @@ namespace sigma_api.Controllers
             return JsonConvert.SerializeObject(response_City);
         }
 
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/ListUser")]
+        public string ListUser([FromQuery] ListResponseAll request)
+        {
+            messagebase m = new messagebase();
+            DataTable dt_Listuser = new DataTable();
+            int Pages = 1;
+            ListResponseAll list = new ListResponseAll();
+            List<crmListUserResponseModel> Listuser = new List<crmListUserResponseModel>();
+
+            string baseQuery = $"select USR_id Userid ,Name Username from PRG_Users where USR_type=1";
+            dt_Listuser = cp.select_command(baseQuery);
+            if (cls_public.sqlError.success == false)
+            {
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "DBO_Unavailable");
+            }
+            if (dt_Listuser.Rows.Count <= 0)
+            {
+                if (cls_public.sqlError.message != null)
+                    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "DBO_Error");
+            }
+            else
+            {
+                foreach (DataRow row in dt_Listuser.Rows)
+                {
+                    Listuser.Add(new crmListUserResponseModel()
+                    {
+                        Id = row["Userid"].ToInt(),
+                        Title = row["Username"].ToString()
+                    });
+                }
+                list = new ListResponseAll()
+                {
+                    List = Listuser
+                };
+            }
+            if (Listuser.Count <= 0)
+            {
+                list = new ListResponseAll()
+                {
+                    List = new List<crmCityResponseModel>()
+                };
+            }
+            response_City = new crmCityResponseModelViewALL(list);
+            return JsonConvert.SerializeObject(response_City);
+        }
+        
         [Authorize]
         [HttpGet]
         [Route("api/[controller]/CustomersList")]
@@ -2208,6 +2393,701 @@ and SCC_Showdate is null and SCC_CRC_id is null and SCC_typeme is null  and conv
             //}
 
             return mobile;
+        }
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/ListActivitySetting/{years}/{Mount}")]
+        public string ListActivitySetting([FromQuery] ListResponseAll request)
+        {
+            string Mount = Request.RouteValues["Mount"].ToString();
+            string years = Request.RouteValues["years"].ToString();
+            if (Mount.Length == 1)
+                Mount = "0" + Mount;
+            string startdate = years + "/" + Mount + "/01";
+            string finish31 = years + "/" + Mount + "/31";
+            string finish30 = years + "/" + Mount + "/30";
+            string finish29 = years + "/" + Mount + "/29";
+            DateTime dtstart = DateTime.Now;
+            DateTime dtfinish = DateTime.Now;
+            try
+            {
+                dtstart = ShamsiDate.Shamsi2Miladi(startdate);
+                dtfinish = ShamsiDate.Shamsi2Miladi(finish31);
+            }
+            catch
+            {
+                try
+                {
+                    dtfinish = ShamsiDate.Shamsi2Miladi(finish30);
+                }
+                catch
+                {
+                    dtfinish = ShamsiDate.Shamsi2Miladi(finish29);
+                }
+            }
+            messagebase m = new messagebase();
+            DataTable dt_AlarmSetting = new DataTable();
+            int Pages = 1;
+            ListResponseAll list = new ListResponseAll();
+            List<crmListAlarmSettingPersonelResponseModel> AlarmSetting = new List<crmListAlarmSettingPersonelResponseModel>();
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            if (UserId == 0)
+            {
+                return messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "عدم احراز هویت");
+            }
+            SqlParameter[] parameters =
+            {
+                new SqlParameter("StartDate",dtstart),
+                new SqlParameter("Finishdate",dtfinish)
+            };
+            dt_AlarmSetting = cp.select_row("SpSelectAlarmSetting", parameters);
+            if (cls_public.sqlError.success == false)
+            {
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "DBO_Unavailable");
+            }
+            if (dt_AlarmSetting == null)
+            {
+                if (cls_public.sqlError.message != null)
+                    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "DBO_Error");
+            }
+            else if (dt_AlarmSetting.Rows.Count <= 0)
+            {
+                if (cls_public.sqlError.message != null)
+                    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "DBO_Error");
+            }
+            else
+            {
+                foreach (DataRow row in dt_AlarmSetting.Rows)
+                {
+                    AlarmSetting.Add(new crmListAlarmSettingPersonelResponseModel()
+                    {
+                        AlarmId = row["AlarmId"].ToInt(),
+                        DateSend = Convert.ToDateTime(row["DateSend"].ToString()),
+                        DateAlarm = Convert.ToDateTime(row["DateAlarm"].ToString()),
+                        TimeAlarm = row["TimeAlarm"].ToString(),
+                        DateExpired = string.IsNullOrEmpty(row["DateExpired"].ToString()) ? null : Convert.ToDateTime(row["DateExpired"].ToString()),
+                        DescAlarm = row["DescAlarm"].ToString(),
+                        Sender = row["Sender"].ToString(),
+                        Reciever = row["Reciever"].ToString(),
+                        DescAlarmDetail = row["DescAlarmDetail"].ToString(),
+                    });
+                }
+                list = new ListResponseAll()
+                {
+                    List = AlarmSetting
+                };
+            }
+            
+            response_City = new crmCityResponseModelViewALL(list);
+            return JsonConvert.SerializeObject(response_City);
+        }
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/SpSelectAlarmSettingDetail/{years}/{Mount}/{States}/{Types}")]
+        public string SpSelectAlarmSettingDetailNotshow([FromQuery] ListResponseAll request,int years,int Mount, bool States, int Types)
+        {
+            string Mount2 = Request.RouteValues["Mount"].ToString();
+            string years2 = Request.RouteValues["years"].ToString();
+            if (Mount2.Length == 1)
+                Mount2 = "0" + Mount2;
+            string startdate = years2 + "/" + Mount2 + "/01";
+            string finish31 = years2 + "/" + Mount2 + "/31";
+            string finish30 = years2 + "/" + Mount2 + "/30";
+            string finish29 = years2 + "/" + Mount2 + "/29";
+            DateTime dtstart = DateTime.Now;
+            DateTime dtfinish = DateTime.Now;
+            try
+            {
+                dtstart = ShamsiDate.Shamsi2Miladi(startdate);
+                dtfinish = ShamsiDate.Shamsi2Miladi(finish31);
+            }
+            catch
+            {
+                try
+                {
+                    dtfinish = ShamsiDate.Shamsi2Miladi(finish30);
+                }
+                catch
+                {
+                    dtfinish = ShamsiDate.Shamsi2Miladi(finish29);
+                }
+            }
+            messagebase m = new messagebase();
+            DataTable dt_AlarmSetting = new DataTable();
+            int Pages = 1;
+            ListResponseAll list = new ListResponseAll();
+            List<crmListActivityDetaillResponseModel> ListActivityDetail = new List<crmListActivityDetaillResponseModel>();
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            //string Mount = Request.RouteValues["Mount"].ToString();
+            if (UserId == 0)
+            {
+                return messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "عدم احراز هویت");
+            }
+            SqlParameter[] parameters =
+            {
+                new SqlParameter("StartDate",dtstart),
+                new SqlParameter("Finishdate",dtfinish),
+                new SqlParameter("States",States),
+                new SqlParameter("Types",Types),
+                new SqlParameter("Usr",UserId)
+            };
+            dt_AlarmSetting = cp.select_row("SpSelectAlarmSettingDetail", parameters);
+            if (cls_public.sqlError.success == false)
+            {
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "DBO_Unavailable");
+            }
+            if (dt_AlarmSetting == null)
+            {
+                if (cls_public.sqlError.message != null)
+                    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "DBO_Error");
+            }
+            else if (dt_AlarmSetting.Rows.Count <= 0)
+            {
+                if (cls_public.sqlError.message != null)
+                    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "DBO_Error");
+            }
+            else
+            {
+                foreach (DataRow row in dt_AlarmSetting.Rows)
+                {
+                    ListActivityDetail.Add(new crmListActivityDetaillResponseModel()
+                    {
+                        AlarmId = row["AlarmId"].ToInt(),
+                        ShowState = row["ShowState"].ToString(),
+                        Sender = row["Sender"].ToString(),
+                        Reciever = row["Reciever"].ToString(),
+                        DateAlarm = Convert.ToDateTime(row["DateAlarm"].ToString()),
+                        TimeAlarm = row["TimeAlarm"].ToString(),
+                        DescAlarm = row["DescAlarm"].ToString(),
+                        DescAlarmDetail = row["DescAlarm"].ToString(),
+                        DateExpired = string.IsNullOrEmpty(row["DateExpired"].ToString()) ? null : Convert.ToDateTime(row["DateExpired"].ToString()),
+                        Showdate = string.IsNullOrEmpty(row["Showdate"].ToString()) ? null : Convert.ToDateTime(row["Showdate"].ToString()),
+                        ShowdateTime = row["ShowdateTime"].ToString(),
+                        ChangedateState = string.IsNullOrEmpty(row["ChangedateState"].ToString()) ? null : Convert.ToDateTime(row["ChangedateState"].ToString()),
+                    }); 
+                }
+                list = new ListResponseAll()
+                {
+                    List = ListActivityDetail
+                };
+            }
+            if (ListActivityDetail.Count <= 0)
+            {
+                list = new ListResponseAll()
+                {
+                    List = new List<crmCityResponseModel>()
+                };
+            }
+            response_City = new crmCityResponseModelViewALL(list);
+            return JsonConvert.SerializeObject(response_City);
+        }
+
+        [HttpPost]
+        [Route("api/[Controller]/InsertActivity/list")]
+        [Authorize]
+
+        public string InsertActivity([FromBody] List<androidActivityRequestAllModelView> requests)
+        {
+            List<androidCallResponseAllModel> responses = new();
+
+            int UserId = HttpContext.Items["UserId"].ToInt();
+
+            if (UserId == 0)
+            {
+                return JsonConvert.SerializeObject(new messagebase()
+                {
+                    code = ErrorCode.Authentication.GetHashCode(),
+                    success = false,
+                    message = "عدم احراز هویت"
+                });
+            }
+            foreach (var request in requests)
+            {
+                if (string.IsNullOrEmpty(request.DescAlarm))
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "عنوان غعالیت اجباری میباشد");
+                }
+                else if (string.IsNullOrEmpty(request.DateAlarm.ToString()))
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "تاریخ غعالیت اجباری میباشد");
+                }
+                else if (string.IsNullOrEmpty(request.DateExpired.ToString()))
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "تاریخ مهلت انجام کار اجباری میباشد");
+                }
+            }
+
+            bool checkTrue = InserAct(requests, UserId);
+
+            if (checkTrue)
+                return messagebase.messages(true, ErrorCode.Created.GetHashCode(), "فعالیت با موفقیت ایجاد شد ");
+
+            if (cls_public.sqlError.success == false)
+            {
+                response_call_all = new androidCallResponseAllModelView(
+                        ErrorCode.DBO_Unavailable.GetHashCode(),
+                        cls_public.sqlError.message
+
+                );
+            }
+            else if (!checkTrue)
+            {
+                response_call_all = new androidCallResponseAllModelView(
+                        ErrorCode.DBO_Unavailable.GetHashCode(),
+                        cls_public.sqlError.message
+
+                );
+            }
+            else
+            {
+                response_call_all = new androidCallResponseAllModelView(responses);
+            }
+
+            return JsonConvert.SerializeObject(response_call_all);
+        }
+        public static string PersianNumbersToEnglish(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return input;
+
+            char[] persian = "۰۱۲۳۴۵۶۷۸۹".ToCharArray();
+            char[] english = "0123456789".ToCharArray();
+
+            foreach (char c in persian)
+            {
+                input = input.Replace(c, english[Array.IndexOf(persian, c)]);
+            }
+
+            return input;
+        }
+        public bool InserAct(List<androidActivityRequestAllModelView> requests, int UserId)
+        {
+            bool checkTrue = false;
+            List<androidCallResponseAllModel> responses = new();
+
+            DataTable DtjobSchedule = new DataTable();
+            DtjobSchedule.Columns.Add("usrid", typeof(int));
+            DtjobSchedule.Columns.Add("desc", typeof(string));
+            DtjobSchedule.Columns.Add("cdate", typeof(DateTime));
+            DtjobSchedule.Columns.Add("desc2", typeof(string));
+            DtjobSchedule.Columns.Add("type", typeof(bool));
+            DtjobSchedule.Columns.Add("als", typeof(int));
+            DtjobSchedule.Columns.Add("desconly", typeof(string));
+            DtjobSchedule.Columns.Add("usridcreate", typeof(int));
+            DtjobSchedule.Columns.Add("mobileuser", typeof(string));
+            DtjobSchedule.Columns.Add("checksendsms", typeof(bool));
+            DtjobSchedule.Columns.Add("DateExpired", typeof(DateTime));
+            string AlarmTime = "";
+            foreach (var request in requests)
+            {
+                AlarmTime = PersianNumbersToEnglish(request.AlarmTime);
+                if (string.IsNullOrEmpty(request.DateExpired.ToString()))
+                    request.DateExpired = request.DateAlarm;
+                try
+                {
+                    TimeSpan time = TimeSpan.Parse(AlarmTime);
+
+                    request.DateAlarm = request.DateAlarm.Date.Add(time);
+
+                    DtjobSchedule.Rows.Add(request.Userid, request.DescAlarm, request.DateAlarm, request.DescAlarmDetail, false
+                          , 0, request.DescAlarm, UserId, DBNull.Value, 0, request.DateExpired);
+                }
+                catch { }
+            }
+            SqlParameter[] parameters2 =
+                            {
+                              new SqlParameter("@Time", AlarmTime),
+                            };
+
+            checkTrue = cp.updateDatatable("API_SpinAlarmSetting", parameters2, "@TablejobSchedule", DtjobSchedule);
+            return checkTrue;
+        }
+        [HttpPost]
+        [Route("api/[Controller]/DeleteActivity/{Alarm_id}")]
+        [Authorize]
+        public string DeleteActivity(int Alarm_id)
+        {
+            List<androidCallResponseAllModel> responses = new();
+
+            int UserId = HttpContext.Items["UserId"].ToInt();
+
+            if (UserId == 0)
+            {
+                return JsonConvert.SerializeObject(new messagebase()
+                {
+                    code = ErrorCode.Authentication.GetHashCode(),
+                    success = false,
+                    message = "عدم احراز هویت"
+                });
+            }
+
+            SqlParameter[] parameters =
+            {
+        new SqlParameter("@Als", Alarm_id),
+        new SqlParameter("@usr", UserId),
+            };
+
+         
+            string  text = cp.insert_getid("API_SpdeleteAlarmSetting", parameters);
+            if (text.ToInt()==0)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "حداقل یکی از گیرندگان فعالیت را مشاهده کرده اند . امکان حذف وجود ندارد");
+            }
+            if (text.ToInt() == 1)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "فعالیت مورد نظر توسط شما ایجاد نشده است . امکان حذف وجود ندارد");
+            }
+            if (text.ToInt() == -1)
+            {
+                return messagebase.messages(true, ErrorCode.Created.GetHashCode(), "حذف فعالیت با موفقیت انجام شد");
+            }
+
+
+            if (cls_public.sqlError.success == false)
+            {
+                response_call_all = new androidCallResponseAllModelView(
+                        ErrorCode.DBO_Unavailable.GetHashCode(),
+                        cls_public.sqlError.message
+
+                );
+            }
+            else
+            {
+                response_call_all = new androidCallResponseAllModelView(responses);
+            }
+
+            return JsonConvert.SerializeObject(response_call_all);
+        }
+
+        [HttpPost]
+        [Route("api/[Controller]/EditActivity/list")]
+        [Authorize]
+        public string EditActivity([FromBody] List<androidActivityRequestAllModelView> requests)
+        {
+            List<androidCallResponseAllModel> responses = new();
+
+            int UserId = HttpContext.Items["UserId"].ToInt();
+
+            if (UserId == 0)
+            {
+                return JsonConvert.SerializeObject(new messagebase()
+                {
+                    code = ErrorCode.Authentication.GetHashCode(),
+                    success = false,
+                    message = "عدم احراز هویت"
+                });
+            }
+            int Alarm_id = 0;
+            foreach (var request in requests)
+            {
+                Alarm_id = request.AlarmId;
+                if (string.IsNullOrEmpty(request.DescAlarm))
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "عنوان غعالیت اجباری میباشد");
+                }
+                else if (string.IsNullOrEmpty(request.DateAlarm.ToString()))
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "تاریخ غعالیت اجباری میباشد");
+                }
+                else if (string.IsNullOrEmpty(request.DateExpired.ToString()))
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "تاریخ مهلت انجام کار اجباری میباشد");
+                }
+            }
+            SqlParameter[] parameters =
+            {
+        new SqlParameter("@Als", Alarm_id),
+        new SqlParameter("@usr", UserId),
+            };
+            string text = cp.insert_getid("API_SpdeleteAlarmSetting", parameters);
+            if (text.ToInt() == 0)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "حداقل یکی از گیرندگان فعالیت را مشاهده کرده اند . امکان ویرایش وجود ندارد");
+            }
+            if (text.ToInt() == 1)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "فعالیت مورد نظر توسط شما ایجاد نشده است . امکان ویرایش وجود ندارد");
+            }
+            if (text.ToInt() == -1)
+            {
+                if (cls_public.sqlError.success == false)
+                {
+                    response_call_all = new androidCallResponseAllModelView(
+                            ErrorCode.DBO_Unavailable.GetHashCode(),
+                            cls_public.sqlError.message
+
+                    );
+                }
+                else
+                {
+                    bool checkTrue = InserAct(requests, UserId);
+
+                    if (checkTrue)
+                        return messagebase.messages(true, ErrorCode.Created.GetHashCode(), "فعالیت با موفقیت ویرایش شد ");
+                }
+            }
+
+           
+            return JsonConvert.SerializeObject(response_call_all);
+
+        }
+
+        [HttpPost]
+        [Route("api/[Controller]/CheckEditActivity/{Alarm_id}")]
+        [Authorize]
+        public string CheckEditActivity(int Alarm_id)
+        {
+            List<androidCallResponseAllModel> responses = new();
+
+            int UserId = HttpContext.Items["UserId"].ToInt();
+
+            if (UserId == 0)
+            {
+                return JsonConvert.SerializeObject(new messagebase()
+                {
+                    code = ErrorCode.Authentication.GetHashCode(),
+                    success = false,
+                    message = "عدم احراز هویت"
+                });
+            }
+
+            SqlParameter[] parameters =
+            {
+        new SqlParameter("@Als", Alarm_id),
+        new SqlParameter("@usr", UserId),
+            };
+            string text = cp.insert_getid("API_SpCheckShowAlarmSetting", parameters);
+            if (text.ToInt() == 0)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "حداقل یکی از گیرندگان فعالیت را مشاهده کرده اند . امکان حذف وجود ندارد");
+            }
+            if (text.ToInt() == 1)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "فعالیت مورد نظر توسط شما ایجاد نشده است . امکان حذف وجود ندارد");
+            }
+            if (text.ToInt() == -1)
+            {
+                return messagebase.messages(true, ErrorCode.Created.GetHashCode(), "");
+            }
+
+
+            if (cls_public.sqlError.success == false)
+            {
+                response_call_all = new androidCallResponseAllModelView(
+                        ErrorCode.DBO_Unavailable.GetHashCode(),
+                        cls_public.sqlError.message
+
+                );
+            }
+            else
+            {
+                response_call_all = new androidCallResponseAllModelView(responses);
+            }
+
+            return JsonConvert.SerializeObject(response_call_all);
+        }
+
+        [HttpPost]
+        [Route("api/[Controller]/ShowActivity/{Alarm_id}")]
+        [Authorize]
+        public string ShowActivity(int Alarm_id)
+        {
+            List<androidCallResponseAllModel> responses = new();
+
+            int UserId = HttpContext.Items["UserId"].ToInt();
+
+            if (UserId == 0)
+            {
+                return JsonConvert.SerializeObject(new messagebase()
+                {
+                    code = ErrorCode.Authentication.GetHashCode(),
+                    success = false,
+                    message = "عدم احراز هویت"
+                });
+            }
+
+            SqlParameter[] parameters =
+            {
+        new SqlParameter("@Sccid", Alarm_id),
+            };
+            string text = cp.insert_getid("API_SpShowAlarmSetting", parameters);
+            if (text.ToInt() == 1)
+            {
+                return messagebase.messages(true, ErrorCode.Created.GetHashCode(), "");
+            }
+            else
+            {
+                return messagebase.messages(true, ErrorCode.Created.GetHashCode(), "مشاهده فعالیت با خطا مواجه شد");
+            }
+            if (cls_public.sqlError.success == false)
+            {
+                response_call_all = new androidCallResponseAllModelView(
+                        ErrorCode.DBO_Unavailable.GetHashCode(),
+                        cls_public.sqlError.message
+
+                );
+            }
+            else
+            {
+                response_call_all = new androidCallResponseAllModelView(responses);
+            }
+
+            return JsonConvert.SerializeObject(response_call_all);
+        }
+
+        [HttpPost]
+        [Route("api/[Controller]/ChangeStateActivity/{Alarm_id}/{Description}/{TypeReffer}")]
+        [Authorize]
+        public string ChangeStateActivity(int Alarm_id,string Description,int TypeReffer)
+        {
+            List<androidCallResponseAllModel> responses = new();
+
+            int UserId = HttpContext.Items["UserId"].ToInt();
+
+            if (UserId == 0)
+            {
+                return JsonConvert.SerializeObject(new messagebase()
+                {
+                    code = ErrorCode.Authentication.GetHashCode(),
+                    success = false,
+                    message = "عدم احراز هویت"
+                });
+            }
+
+            SqlParameter[] parameters =
+            {
+        new SqlParameter("@Sccid", Alarm_id),
+        new SqlParameter("@desc", Description),
+        new SqlParameter("@TypeRefferLkp", TypeReffer),
+            };
+            string text = cp.insert_getid("API_SpChangeStateAlarmSetting", parameters);
+            if (text.ToInt() == -1)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "فعالیت مورد نظر خاتمه خورده است امکان تغییر وضعیت وجود ندارد");
+            }
+            else
+            {
+                return messagebase.messages(true, ErrorCode.Created.GetHashCode(), "تغییر وضعیت فعالیت با موفقیت انجام شد");
+            }
+            if (cls_public.sqlError.success == false)
+            {
+                response_call_all = new androidCallResponseAllModelView(
+                        ErrorCode.DBO_Unavailable.GetHashCode(),
+                        cls_public.sqlError.message
+
+                );
+            }
+            else
+            {
+                response_call_all = new androidCallResponseAllModelView(responses);
+            }
+
+            return JsonConvert.SerializeObject(response_call_all);
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/ChangeStaeActivityList")]
+        public string ChangeStaeActivityList([FromQuery] ListResponseAll request)
+        {
+            messagebase m = new messagebase();
+            DataTable dt_ChangeStaeActivityList = new DataTable();
+            int Pages = 1;
+            ListResponseAll list = new ListResponseAll();
+            List<crmIdTitleResponseModel> IdTitle = new List<crmIdTitleResponseModel>();
+
+            string baseQuery = $"select LKP_id,LKP_name from PRG_Loockup where LKP_enownerName='PmType'";
+            dt_ChangeStaeActivityList = cp.select_command(baseQuery);
+            if (cls_public.sqlError.success == false)
+            {
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "DBO_Unavailable");
+            }
+            if (dt_ChangeStaeActivityList.Rows.Count <= 0)
+            {
+                if (cls_public.sqlError.message != null)
+                    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "DBO_Error");
+            }
+            else
+            {
+                foreach (DataRow row in dt_ChangeStaeActivityList.Rows)
+                {
+                    IdTitle.Add(new crmIdTitleResponseModel()
+                    {
+                        Id = row["LKP_id"].ToInt(),
+                        Title = row["LKP_name"].ToString(),
+                    });
+                }
+                list = new ListResponseAll()
+                {
+                    List = IdTitle
+                };
+            }
+            if (IdTitle.Count <= 0)
+            {
+                list = new ListResponseAll()
+                {
+                    List = new List<crmCityResponseModel>()
+                };
+            }
+            response_City = new crmCityResponseModelViewALL(list);
+            return JsonConvert.SerializeObject(response_City);
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/HistoryChangestateActivity/{Alarm_id}")]
+        public string HistoryChangestateActivity([FromQuery] ListResponseAll request)
+        {
+            string Alarm_id = Request.RouteValues["Alarm_id"].ToString();
+
+            messagebase m = new messagebase();
+            DataTable dt_AlarmSetting = new DataTable();
+            int Pages = 1;
+            ListResponseAll list = new ListResponseAll();
+            List<crmListChangestateAlarmlResponseModel> AlarmSetting = new List<crmListChangestateAlarmlResponseModel>();
+            int UserId = HttpContext.Items["UserId"].ToInt();
+            if (UserId == 0)
+            {
+                return messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "عدم احراز هویت");
+            }
+            SqlParameter[] parameters =
+            {
+                new SqlParameter("Scc",Alarm_id),
+            };
+            dt_AlarmSetting = cp.select_row("SpSelectHistoryChagestateAlram", parameters);
+            if (cls_public.sqlError.success == false)
+            {
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "DBO_Unavailable");
+            }
+            if (dt_AlarmSetting == null)
+            {
+                if (cls_public.sqlError.message != null)
+                    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "DBO_Error");
+            }
+            else if (dt_AlarmSetting.Rows.Count <= 0)
+            {
+                if (cls_public.sqlError.message != null)
+                    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), "DBO_Error");
+            }
+            else
+            {
+                foreach (DataRow row in dt_AlarmSetting.Rows)
+                {
+                    AlarmSetting.Add(new crmListChangestateAlarmlResponseModel()
+                    {
+                        Descrition = row["Descrition"].ToString(),
+                        Statestr = row["Statestr"].ToString(),
+                        DateShamsi = row["DateShamsi"].ToString(),
+                        Time = row["Time"].ToString(),
+                    });
+                }
+                list = new ListResponseAll()
+                {
+                    List = AlarmSetting
+                };
+            }
+            response_City = new crmCityResponseModelViewALL(list);
+            return JsonConvert.SerializeObject(response_City);
         }
     }
 }

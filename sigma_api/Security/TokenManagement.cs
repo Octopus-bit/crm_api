@@ -15,19 +15,24 @@ namespace sigma_api.Security
         private static readonly ConcurrentDictionary<string, (DataTable Data, DateTime Expires)> _tokenCache
             = new ConcurrentDictionary<string, (DataTable, DateTime)>(StringComparer.Ordinal);
         private static readonly TimeSpan TokenCacheDuration = TimeSpan.FromMinutes(5);
-        public static string WriteToken(int UserId, int TypeToken) //این تابع توکن جدیدی برای کاربر ایجاد میکند
+        public static string WriteToken(int UserId, int TypeToken, int Typee) //این تابع توکن جدیدی برای کاربر ایجاد میکند
         {
             string token = null;
             cls_public cp = new cls_public();
             int retry = 1;
             while (retry <= 3)
             {
+                bool checktrue = false;
+                if (Typee == 2)
+                    checktrue = true;
+
                 token = Guid.NewGuid().ToString();
                 SqlParameter[] parameters2 =
                 {
                     new SqlParameter("user_id", UserId),
                     new SqlParameter("token", coding.SigmaEncryptString(token)),
                     new SqlParameter("typeToken", TypeToken),
+                    new SqlParameter("Typee", checktrue),
                 };
                 if (cp.update("API_SetTokenUsers", parameters2))
                 {

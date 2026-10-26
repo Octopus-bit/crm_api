@@ -159,6 +159,7 @@ namespace sigma_api.Controllers
                     ShowPictureItemPortal = clsProperties.GetPropertise("ShowPictureItemPortal").ToBoolean(),
                     ItemAddition1 = clsProperties.GetPropertise("ItemAdition1").ToString(),
                     ItemAddition2 = clsProperties.GetPropertise("ItemAdition2").ToString(),
+                    ShowPortalItemAdd1 = clsProperties.GetPropertise("ShowPortalItemAdd1").ToBoolean(),
                     Sidebar = sidebar
                 };
                 response_SystemSettings = new generalSystemSettingsResponseModelView(system);

@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Web;
+using System.Windows.Forms;
 namespace sigma_api.Controllers
 {
     public class CrmController : Controller
@@ -26,6 +27,7 @@ namespace sigma_api.Controllers
         cls_public cp = new cls_public();
         ShamsiDate ShD = new ShamsiDate();
         crmLoginResponseModelView response_login;
+        crmLoginUserResponseModelView response_loginUser;
         crmRegistryCodeResponseModelView response_RegistryCode;
         crmItemListResponseModelView response_items;
         crmQuotationsResponseModelView response_quotations;
@@ -106,67 +108,125 @@ namespace sigma_api.Controllers
             string password;
             if (!string.IsNullOrEmpty(request.username))
                 username = request.username = PersianNumbersToEnglish(request.username);
+            username = classes.clsDB.SafeArabiStr(username);
             password = coding.SigmaEncryptString(/*coding.SafeFarsiStr(*/PersianNumbersToEnglish(request.password)/*)*/);
-            if (cp.select_command($"SELECT * FROM dbo.PRG_Tell WHERE tel_tell = '{username}' AND tel_type = 1").Rows.Count <= 0)
+            if (request.Type == 2)
             {
-                return messagebase.messages(false, ErrorCode.InvalidUser.GetHashCode(), "حساب کاربری یافت نشد");
+                if (cp.select_command($"SELECT * FROM [dbo].[PRG_Users] WHERE dbo.ArabicPersion(UserName) = dbo.ArabicPersion('{username}') ").Rows.Count <= 0)
+                {
+                    return messagebase.messages(false, ErrorCode.InvalidUser.GetHashCode(), "حساب کاربری یافت نشد");
+                }
+            }
+            if (request.Type == 1)
+            {
+                if (cp.select_command($"SELECT * FROM dbo.PRG_Tell WHERE tel_tell = '{username}' AND tel_type = 1").Rows.Count <= 0)
+                {
+                    return messagebase.messages(false, ErrorCode.InvalidUser.GetHashCode(), "حساب کاربری یافت نشد");
+                }
             }
             SqlParameter[] parameters =
             {
                 new SqlParameter("username",username),
                 new SqlParameter("password",password),
-                new SqlParameter("Type",1),
+                new SqlParameter("Type",request.Type),
             };
             DataTable dt = cp.select_row("API_CheckUser", parameters);
             if (cls_public.sqlError.success == false)
             {
-                response_login = new crmLoginResponseModelView(ErrorCode.DBO_Unavailable.GetHashCode(), cls_public.sqlError.message);
+                if (request.Type == 2)
+                    response_loginUser = new crmLoginUserResponseModelView(ErrorCode.DBO_Unavailable.GetHashCode(), cls_public.sqlError.message);
+                if (request.Type == 1)
+                    response_login = new crmLoginResponseModelView(ErrorCode.DBO_Unavailable.GetHashCode(), cls_public.sqlError.message);
             }
             else
             {
                 if (dt.Rows.Count == 1)
                 {
-                    int ID = dt.Rows[0]["ID"].ToInt();
-                    string FirstName = dt.Rows[0]["FirstName"].ToString();
-                    string LastName = dt.Rows[0]["LastName"].ToString();
-                    string Birthdate = dt.Rows[0]["Birthdate"].ToString();
-                    string MeliCode = dt.Rows[0]["MeliCode"].ToString();
-                    string Email = dt.Rows[0]["Email"].ToString();
-                    string Type = dt.Rows[0]["Type"].ToString();
-                    bool Status = dt.Rows[0]["Status"].ToBoolean();
-                    if (Status == false)
+                    if (request.Type == 2)
                     {
-                        response_login = new crmLoginResponseModelView(ErrorCode.NoAccess.GetHashCode(), "حساب کاربری غیرفعال میباشد");
+                        if (dt.Rows[0]["USR_type"].ToBoolean() == false)
+                            return messagebase.messages(false, ErrorCode.InvalidUser.GetHashCode(), "حساب کاربری غیرفعال میباشد");
                     }
-                    else
+                    //if (request.Type == 1)
+                    //{
+                    //    if (dt.Rows[0]["USR_type"].ToBoolean() == false)
+                    //        return messagebase.messages(false, ErrorCode.InvalidUser.GetHashCode(), "حساب کاربری غیرفعال میباشد");
+                    //}
+                    //int ID = dt.Rows[0]["ID"].ToInt();
+                    //string FirstName = dt.Rows[0]["FirstName"].ToString();
+                    //string LastName = dt.Rows[0]["LastName"].ToString();
+                    //string Birthdate = dt.Rows[0]["Birthdate"].ToString();
+                    //string MeliCode = dt.Rows[0]["MeliCode"].ToString();
+                    //string Email = dt.Rows[0]["Email"].ToString();
+                    //string Type = dt.Rows[0]["Type"].ToString();
+                    //bool Status = dt.Rows[0]["Status"].ToBoolean();
+
+                    string token = "";
+                    //if (request.Type == 1)
+                        token = TokenManagement.WriteToken(dt.Rows[0]["ID"].ToInt(), TypeToken.customer.GetHashCode(), request.Type);
+                    //if (request.Type == 2)
+                    //    token = TokenManagement.WriteToken(dt.Rows[0]["ID"].ToInt(), TypeToken.user.GetHashCode());
+
+                    if (TokenManagement.IsCreated)
                     {
-                        string token = TokenManagement.WriteToken(ID, TypeToken.customer.GetHashCode());
-                        if (TokenManagement.IsCreated)
+                        if (request.Type == 1)
                         {
                             crmLoginResponseModel data = new crmLoginResponseModel();
                             data.id = token;
-                            data.Type = Type;
-                            data.FirstName = FirstName;
-                            data.LastName = LastName;
-                            data.MeliCode = MeliCode;
-                            data.Email = Email;
-                            data.Birthdate = Birthdate;
+                            data.Type = dt.Rows[0]["Type"].ToString();
+                            data.FirstName = dt.Rows[0]["FirstName"].ToString();
+                            data.LastName = dt.Rows[0]["LastName"].ToString();
+                            data.MeliCode = dt.Rows[0]["MeliCode"].ToString();
+                            data.Email = dt.Rows[0]["Email"].ToString();
+                            data.Birthdate = dt.Rows[0]["Birthdate"].ToString();
                             response_login = new crmLoginResponseModelView(data);
-                            HttpContext.Response.Headers.Add("Token", token);
                         }
-                        else
+                        if (request.Type == 2)
+                        {
+                            crmLoginUserResponseModel data = new crmLoginUserResponseModel();
+                            data.id = token;
+                            data.Mobile = dt.Rows[0]["Phone"].ToString();
+                            data.UserName = username;
+                            data.UserId = dt.Rows[0]["ID"].ToInt();
+                            response_loginUser = new crmLoginUserResponseModelView(data);
+                        }
+                        HttpContext.Response.Headers.Add("Token", token);
+                    }
+                    else
+                    {
+                        if (request.Type == 1)
                         {
                             response_login =
                                 new crmLoginResponseModelView(ErrorCode.Authentication.GetHashCode(),
                                     "احراز هویت با مشکل مواجه شد");
                         }
-
+                        if (request.Type == 2)
+                        {
+                            response_loginUser =
+                                new crmLoginUserResponseModelView(ErrorCode.Authentication.GetHashCode(),
+                                    "احراز هویت با مشکل مواجه شد");
+                        }
                     }
                 }
                 else
                 {
-                    response_login = new crmLoginResponseModelView(ErrorCode.InvalidUser.GetHashCode(), "نام کاربری یا کلمه عبور اشتباه میباشد");
+                    if (request.Type == 1)
+                    {
+                        response_login = new crmLoginResponseModelView(ErrorCode.InvalidUser.GetHashCode(), "نام کاربری یا کلمه عبور اشتباه میباشد");
+                    }
+                    if (request.Type == 2)
+                    {
+                        response_loginUser = new crmLoginUserResponseModelView(ErrorCode.InvalidUser.GetHashCode(), "نام کاربری یا کلمه عبور اشتباه میباشد");
+                    }
                 }
+            }
+            if (request.Type == 1)
+            {
+                return JsonConvert.SerializeObject(response_login);
+            }
+            if (request.Type == 2)
+            {
+                return JsonConvert.SerializeObject(response_loginUser);
             }
             return JsonConvert.SerializeObject(response_login);
         }
@@ -309,6 +369,189 @@ namespace sigma_api.Controllers
             return JsonConvert.SerializeObject(response_InfoCustomer);
         }
 
+        [Authorize]
+        [HttpGet]
+        [Route("api/[controller]/getNewcustomer")]
+        public string getNewcustomer([FromQuery] ListCustomersRequest request)
+        {
+
+            try
+            {
+                if (request.NextPage < 0)
+                {
+                    return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "شماره صفحه وارد شده یافت نشد");
+                }
+            }
+            catch
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "Method not allowed");
+            }
+            int NumberOfRow = 200;
+            ListResponse list = new ListResponse();
+            List<crmCustomersListResponseModel> ItemList = new List<crmCustomersListResponseModel>(NumberOfRow);
+            messagebase m = new messagebase();
+            int UserId = 0;
+            if (HttpContext.Items["UserId"] != null)
+            {
+                UserId = HttpContext.Items["UserId"].ToInt();
+            }
+            else
+            {
+                return messagebase.messages(false, ErrorCode.Authentication.GetHashCode(), "User not authenticated");
+            }
+
+            string where = "";
+
+            if (!string.IsNullOrEmpty(request.SearchName))
+                request.SearchName = PersianNumbersToEnglish(request.SearchName);
+            
+
+            SqlParameter[] parameters0 =
+            {
+                    new SqlParameter("usrid",UserId)
+            };
+            DataTable dt_DtCheckPr = cp.select_command(@"SELECT PRG_Accessibility.acc_Type 
+                    FROM PRG_Accessibility WHERE PRG_Accessibility.acc_name='customeruser' AND PRG_Accessibility.acc_user = @usrid 
+union all 
+SELECT PRG_Accessibility.acc_Type FROM PRG_Accessibility WHERE  PRG_Accessibility.acc_name='customeruser' AND PRG_Accessibility.acc_grp_id = (select USR_Group_id from PRG_Users
+                       where USR_id = @usrid) and acc_name not in (SELECT PRG_Accessibility.acc_name
+                        FROM PRG_Accessibility WHERE PRG_Accessibility.acc_user = @usrid) ", parameters0);
+
+            SqlParameter[] parameters2 = new SqlParameter[]
+            {
+                new SqlParameter("CustomerId",UserId),
+                new SqlParameter("type",dt_DtCheckPr.Rows[0][0].ToBoolean()),
+                new SqlParameter("searchType",request.SearchType),
+                new SqlParameter("search",string.IsNullOrEmpty(request.SearchName) ? DBNull.Value : HttpUtility.UrlDecode(request.SearchName)),
+                new SqlParameter("SearchPhone",string.IsNullOrEmpty(request.SearchPhone) ? DBNull.Value : HttpUtility.UrlDecode(request.SearchPhone)),
+                //new SqlParameter("searchCode",string.IsNullOrEmpty(request.SearchCode) ? DBNull.Value : HttpUtility.UrlDecode(request.SearchCode)),
+                new SqlParameter("NextPage",request.NextPage == 0
+                               ? (object)DBNull.Value
+                               : (object)request.NextPage ),
+                new SqlParameter("PreviousPage",request.PreviousPage == 0
+                               ? (object)DBNull.Value
+                               : (object)request.PreviousPage ),
+                new SqlParameter("NumberOfRow",NumberOfRow),
+            };
+            //SqlParameter[] parameters2 =
+            //{
+            //        new SqlParameter("saleexp",""),
+            //        new SqlParameter("saleexphe",""),
+            //        new SqlParameter("type",dt_DtCheckPr.Rows[0][0].ToBoolean()),
+            //        new SqlParameter("usrid",UserId)
+            //};
+            DataTable dt_InfoNewCustomer = cp.select_row("API_ListCustomerS", parameters2);
+
+
+            if (cls_public.sqlError.success == false)
+            {
+                return messagebase.messages(false, ErrorCode.DBO_Unavailable.GetHashCode(), "DBO_Unavailable");
+            }
+            if (dt_InfoNewCustomer == null || dt_InfoNewCustomer.Rows.Count <= 0)
+            {
+                return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "مشتری مورد نظر یافت نشد");
+            }
+            else
+            {
+                string imageFolderPath = Path.Combine(_env.WebRootPath == null ? _env.ContentRootPath : _env.WebRootPath, "images-item");
+                if (!Directory.Exists(imageFolderPath))
+                    Directory.CreateDirectory(imageFolderPath);
+
+                //bool hasBrand = dt_items.Columns.Contains("Brand");
+                //bool hasDistinctCustomersBrand = dt_items.Columns.Contains("DistinctCustomersBrand");
+                //bool hasUnitId2 = dt_items.Columns.Contains("UnitId2");
+                //bool hasUnit2 = dt_items.Columns.Contains("Unit2");
+                //bool hasDuty = dt_items.Columns.Contains("duty");
+                //bool hasTax = dt_items.Columns.Contains("tax");
+                //bool hasSupplierId = dt_items.Columns.Contains("SupplierId");
+                //bool hasSupplier = dt_items.Columns.Contains("Supplier");
+                //bool hasIS_GroupStock = dt_items.Columns.Contains("IS_GroupStock");
+                //bool hasGRS_GroupName = dt_items.Columns.Contains("GRS_GroupName");
+                //bool hasImage = dt_items.Columns.Contains("Image");
+                //string baseImageUrl = $"{Request.Scheme}://{Request.Host}/images-item/";
+
+                foreach (DataRow row in dt_InfoNewCustomer.Rows)
+                {
+                    ItemList.Add(new crmCustomersListResponseModel()
+                    {
+                        cst_id = row["ID"].ToInt(),
+                        CustomersName = row["CustomersName"].ToString(),
+                        CustomersType = row["CustomersType"].ToString(),
+                        CustomersCode = row["CustomersCode"].ToString(),
+                        Ostan = row["Ostan"].ToString(),
+                        City = row["City"].ToString(),
+                        Phone = row["Phone"].ToString(),
+                        Address = row["Address"].ToString(),
+                        CityId = row["cst_city"].ToInt(),
+                    });
+                }
+                list = new ListResponse()
+                {
+                    Pages = 1,//Pages,
+                    Page_row = 0,//.page_number,
+                    List = ItemList
+                };
+            }
+            if (ItemList.Count <= 0)
+            {
+                list = new ListResponse()
+                {
+                    Pages = 1,
+                    Page_row = 0,//request.page_number,
+                    List = new List<crmCustomersListResponseModel>()
+                };
+            }
+            response_items = new crmItemListResponseModelView(list);
+            return JsonConvert.SerializeObject(response_items);
+        }
+
+//        [Authorize]
+//        [HttpGet]
+//        [Route("api/[controller]/getNewcustomer")]
+//        public string getNewcustomer()
+//        {
+//            messagebase mes = new messagebase();
+//            int UserId = HttpContext.Items["UserId"].ToInt();
+
+//            SqlParameter[] parameters0 =
+//            {
+//                    new SqlParameter("usrid",UserId)
+//            };
+//            DataTable dt_DtCheckPr = cp.select_command(@"SELECT PRG_Accessibility.acc_Type 
+//                    FROM PRG_Accessibility WHERE PRG_Accessibility.acc_name='customeruser' AND PRG_Accessibility.acc_user = @usrid 
+//union all 
+//SELECT PRG_Accessibility.acc_Type FROM PRG_Accessibility WHERE  PRG_Accessibility.acc_name='customeruser' AND PRG_Accessibility.acc_grp_id = (select USR_Group_id from PRG_Users
+//                       where USR_id = @usrid) and acc_name not in (SELECT PRG_Accessibility.acc_name
+//                        FROM PRG_Accessibility WHERE PRG_Accessibility.acc_user = @usrid) ", parameters0);
+
+//            SqlParameter[] parameters2 =
+//            { 
+//                    new SqlParameter("saleexp",""),
+//                    new SqlParameter("saleexphe",""),
+//                    new SqlParameter("type",dt_DtCheckPr.Rows[0][0].ToBoolean()),
+//                    new SqlParameter("usrid",UserId)
+//            };
+//            DataTable dt_InfoNewCustomer = cp.select_row("SPSelectCustomersRe", parameters2);
+//            if (dt_InfoNewCustomer.Rows.Count > 0)
+//            {
+//                generalInfoCustomerResponseModel data = new generalInfoCustomerResponseModel();
+//                data.Id = dt_InfoNewCustomer.Rows[0]["cst_id"].ToInt();
+//                data.CustomersCode = dt_InfoNewCustomer.Rows[0]["Code"].ToString();
+//                data.FullName = dt_InfoNewCustomer.Rows[0]["cst_laname"].ToString();
+//                data.Type = dt_InfoNewCustomer.Rows[0]["Type"].ToString();
+//                data.TypeId = dt_InfoNewCustomer.Rows[0]["TypeId"].ToInt();
+//                data.Mobile = dt_InfoNewCustomer.Rows[0]["tel_tell"].ToString();
+//                data.Address = dt_InfoNewCustomer.Rows[0]["add_add"].ToString();
+//                data.city = dt_InfoNewCustomer.Rows[0]["LocationId"].ToInt();
+//                data.cityName = dt_InfoNewCustomer.Rows[0]["city"].ToString();
+//                response_InfoCustomer = new generalInfoCustomerResponseModelView(data);
+//            }
+//            else
+//            {
+//                response_InfoCustomer = new generalInfoCustomerResponseModelView(null);
+//            }
+//            return JsonConvert.SerializeObject(response_InfoCustomer);
+//        }
         [HttpPost]
         [Route("api/[controller]/forgot-password")]
         [AllowAnonymous]
@@ -364,7 +607,7 @@ namespace sigma_api.Controllers
                 else if (res_code.ToInt() > 1)
                 {
 
-                    string token = TokenManagement.WriteToken(res_code.ToInt(), TypeToken.customer.GetHashCode());
+                    string token = TokenManagement.WriteToken(res_code.ToInt(), TypeToken.customer.GetHashCode(),0);
                     if (TokenManagement.IsCreated)
                     {
                         crmLoginResponseModel data = new crmLoginResponseModel();
@@ -731,8 +974,6 @@ namespace sigma_api.Controllers
                 return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "Method not allowed");
             }
             int NumberOfRow = 200;
-            //int Pages = 1;
-            //Pages = request.page_number;
             int IS_id = 0;
             ListResponse list = new ListResponse();
             List<crmItemListResponseModel> ItemList = new List<crmItemListResponseModel>(NumberOfRow);
@@ -751,17 +992,6 @@ namespace sigma_api.Controllers
 
             string where = "";
 
-            //if (request.SearchType == "0")
-            //{
-            //    if (!string.IsNullOrEmpty(request.SearchName))
-            //        where = " AND " + classes.clsGlobal.StringSplitOptionsRemoveEmptyEntries(request.SearchName);
-            //}
-
-            //if (request.SearchType == "1")
-            //{
-            //    where = $" AND ( dbo.ArabicPersion(itm.ITM_fullname) LIKE dbo.ArabicPersion(N'{request.SearchName}%') " +
-            //        $" OR itm.ITM_Code LIKE N'{request.SearchName}%' )"; //classes.clsGlobal.StringSplitOptionsRemoveEmptyEntries(request.SearchName);
-            //}
             if (!string.IsNullOrEmpty(request.SearchName))
                 request.SearchName = PersianNumbersToEnglish(request.SearchName);
             SqlParameter[] parameters = new SqlParameter[]
@@ -800,9 +1030,6 @@ namespace sigma_api.Controllers
             if (dt_items == null || dt_items.Rows.Count <= 0)
             {
                 return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "کالای مورد نظر یافت نشد");
-
-                //if (cls_public.sqlError.message != null)
-                //    return messagebase.messages(false, ErrorCode.DBO_Error.GetHashCode(), cls_public.sqlError.message);
             }
             else
             {
@@ -964,7 +1191,7 @@ namespace sigma_api.Controllers
             }
             CrmSendPdfModel ItemInfo = null;
             messagebase m = new messagebase();
-            int UserId = HttpContext.Items["UserId"].ToInt();
+          //  int UserId = HttpContext.Items["UserId"].ToInt();
 
             DataTable dt_Pdf = new DataTable();
             using (SqlCommand _command = new SqlCommand("select DR_script,DR_existence,DR_ReportData from dbo.PRG_DynamicReport where DR_ShowPortal =1 AND DR_existence = " + FormType, cp.connect()))
@@ -1014,7 +1241,7 @@ namespace sigma_api.Controllers
                 {
 
                     if (clsProperties.GetPropertise("ShowSignsPrintLadingType").ToInt() == 0)
-                        Dtsign = GetSignerForm(report, FormType, FormID.ToString());//چاپ امضاها
+                        Dtsign = cp.GetSignerForm(report, FormType, FormID.ToString());//چاپ امضاها
                     if (clsProperties.GetPropertise("ShowSignsPrintLadingType").ToInt() == 1)
                     {
                         DataTable DtfindId = new DataTable();
@@ -1026,7 +1253,7 @@ namespace sigma_api.Controllers
                                 adapter1.Fill(DtfindId);
                             }
                         }
-                        Dtsign = GetSignerForm(report, 2, DtfindId.Rows[0][0].ToString());//پیش فاکتور
+                        Dtsign = cp.GetSignerForm(report, 2, DtfindId.Rows[0][0].ToString());//پیش فاکتور
                     }
                     if (clsProperties.GetPropertise("ShowSignsPrintLadingType").ToInt() == 2)
                     {
@@ -1039,11 +1266,11 @@ namespace sigma_api.Controllers
                                 adapter1.Fill(DtfindId);
                             }
                         }
-                        Dtsign = GetSignerForm(report, 6, DtfindId.Rows[0][0].ToString());//پیش فاکتور
+                        Dtsign = cp.GetSignerForm(report, 6, DtfindId.Rows[0][0].ToString());//پیش فاکتور
                     }
                 }
                 else
-                    Dtsign = GetSignerForm(report, FormType, FormID.ToString());//چاپ امضاها
+                    Dtsign = cp.GetSignerForm(report, FormType, FormID.ToString());//چاپ امضاها
                 DataRow dt_Pdfdr = dt_Pdf.Rows[0];
                 DaynamicReportDatabase(dt_Pdfdr, dtprint, Dtsign);
 
@@ -1068,7 +1295,7 @@ namespace sigma_api.Controllers
 
                     ItemInfo = new CrmSendPdfModel()
                     {
-                        Pdf = ImageConverter(sendfile, filename + ".pdf")
+                        Pdf = text
                     };
                 }
                 response_items = new crmItemListResponseModelView(ItemInfo);
@@ -1082,7 +1309,7 @@ namespace sigma_api.Controllers
         }
         public string filename = "";
         string ErrorStr = "";
-        public void DaynamicReportDatabase(DataRow currentRow, DataTable DtprintDesign, DataTable DtDtsign = null)
+        public static void DaynamicReportDatabase(DataRow currentRow, DataTable DtprintDesign, DataTable DtDtsign = null)
         {
             try
             {
@@ -1095,7 +1322,19 @@ namespace sigma_api.Controllers
                 }
 
                 Report report = new Report();
-
+                try
+                {
+                    using (MemoryStream ms = new MemoryStream(reportBytes))
+                    {
+                        ms.Position = 0;
+                        report.Load(ms);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        ex.ToString());
+                }
                 // بارگذاری گزارش از حافظه
                 using (MemoryStream ms = new MemoryStream(reportBytes))
                 {
@@ -1123,27 +1362,8 @@ namespace sigma_api.Controllers
                 Random rand = new Random();
                 string crand = rand.Next(1111, 9999).ToString();
                 string downloadsPath = directoryPath + "PrintPdf\\" + "PrintPdf" + "_" + crand+".pdf";
-                filename = "PrintPdf" + "_" + crand;
-                //using (MemoryStream ms = new MemoryStream())
-                //{
-                //    // ایجاد اکسپورت PDF
-                //    // توجه: اگر کلاس PdfExport را نمی‌شناسد، نام آن را در IntelliSense چک کنید
-                //    // ممکن است در نسخه‌های خاص PdfSimpleExport باشد
-                //    var PDFSimpleExport = new FastReport.Export.PdfSimple.PDFSimpleExport();
+                string filename = "PrintPdf" + "_" + crand;
 
-                //    try
-                //    {
-                //        report.Export(pdfExport, ms);
-
-                //        // تبدیل MemoryStream به آرایه بایت
-                //        sendfile = ms.ToArray();
-                //    }
-                //    catch (Exception ex)
-                //    {
-                //        // مدیریت خطای احتمالی در حین اکسپورت
-                //      //  Console.WriteLine($"خطا در خروجی PDF: {ex.Message}");
-                //    }
-                //}
                 report.Export(new PDFSimpleExport(), downloadsPath);
                 try
                 {
@@ -1156,7 +1376,7 @@ namespace sigma_api.Controllers
             }
             catch (Exception ex)
             {
-                ErrorStr = ex.Message;
+               // ErrorStr = ex.Message;
                 //MessageBox.Show(ex.Message);
             }
 
@@ -1199,324 +1419,15 @@ namespace sigma_api.Controllers
             return input;
         }
 
-        public byte[] sendfile;
-        public DataTable GetSignerForm(Report report, int? formtypeid, string formid)
-        {
-            DataTable DtSigns = new DataTable();
-            DataTable dtremindnew = new DataTable();
-            using (SqlCommand _command2 = new SqlCommand(@"select USR_sign,dbo.mtsh(IS_SignDate) SignDate,PRG_Users.Name from [dbo].[PRG_InsertSigns]
-join PRG_Users on USR_id=IS_usr_id  where  IS_formtypeid=" + formtypeid.ToString() + " and IS_formid=" + formid + @" and [USR_sign] is not null
-order by IS_SignDate", cp.connect()))
-            {
-                _command2.CommandType = CommandType.Text;
-                //_command2.Parameters.AddWithValue("@Id", FormID);
-                //_command.Parameters.AddWithValue("@FormId", Formid);
+        public static byte[] sendfile;
 
-                using (SqlDataAdapter adapter1 = new SqlDataAdapter(_command2))
-                {
-                    adapter1.Fill(dtremindnew);
-                }
-            }
-            int rowsid = -1;
-            foreach (DataRow dr in dtremindnew.Rows)
-            {
-                rowsid++;
-                DtSigns.Columns.Add("Sign" + rowsid.ToString(), typeof(Byte[]));
-            }
+        public static string[] yekan = new string[10] { "صفر", "يک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه" };
+        public static string[] dahgan = new string[10] { "", "", "بيست", "سي", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود" };
+        public static string[] dahyek = new string[10] { "ده", "يازده", "دوازده", "سيزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده" };
+        public static string[] sadgan = new string[10] { "", "يکصد", "دويست", "سيصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد" };
+        public static string[] basex = new string[5] { "", "هزار", "ميليون", "ميليارد", "تريليون" };
 
-            if (rowsid == -1)
-            {
-                DtSigns.Columns.Add("Sign0", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign1", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign2", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign3", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-            }
-            if (rowsid == 0)
-            {
-                DtSigns.Columns.Add("Sign1", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign2", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign3", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-            }
-            else if (rowsid == 1)
-            {
-                DtSigns.Columns.Add("Sign2", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign3", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-
-            }
-            else if (rowsid == 2)
-            {
-                DtSigns.Columns.Add("Sign3", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-            }
-            else if (rowsid == 3)
-            {
-                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-            }
-            else if (rowsid == 4)
-            {
-                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-            }
-            else if (rowsid == 5)
-            {
-                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-            }
-            else if (rowsid == 6)
-            {
-                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-            }
-            else if (rowsid == 7)
-            {
-                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-            }
-            else if (rowsid == 8)
-            {
-                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
-            }
-
-            rowsid = -1;
-            foreach (DataRow dr in dtremindnew.Rows)
-            {
-                rowsid++;
-                DtSigns.Columns.Add("Sign" + rowsid.ToString() + "Date", typeof(string));
-            }
-            if (rowsid == -1)
-            {
-                DtSigns.Columns.Add("Sign0Date", typeof(string));
-                DtSigns.Columns.Add("Sign1Date", typeof(string));
-                DtSigns.Columns.Add("Sign2Date", typeof(string));
-                DtSigns.Columns.Add("Sign3Date", typeof(string));
-                DtSigns.Columns.Add("Sign4Date", typeof(string));
-                DtSigns.Columns.Add("Sign5Date", typeof(string));
-                DtSigns.Columns.Add("Sign6Date", typeof(string));
-                DtSigns.Columns.Add("Sign7Date", typeof(string));
-                DtSigns.Columns.Add("Sign8Date", typeof(string));
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-            if (rowsid == 0)
-            {
-                DtSigns.Columns.Add("Sign1Date", typeof(string));
-                DtSigns.Columns.Add("Sign2Date", typeof(string));
-                DtSigns.Columns.Add("Sign3Date", typeof(string));
-                DtSigns.Columns.Add("Sign4Date", typeof(string));
-                DtSigns.Columns.Add("Sign5Date", typeof(string));
-                DtSigns.Columns.Add("Sign6Date", typeof(string));
-                DtSigns.Columns.Add("Sign7Date", typeof(string));
-                DtSigns.Columns.Add("Sign8Date", typeof(string));
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-            else if (rowsid == 1)
-            {
-                DtSigns.Columns.Add("Sign2Date", typeof(string));
-                DtSigns.Columns.Add("Sign3Date", typeof(string));
-                DtSigns.Columns.Add("Sign4Date", typeof(string));
-                DtSigns.Columns.Add("Sign5Date", typeof(string));
-                DtSigns.Columns.Add("Sign6Date", typeof(string));
-                DtSigns.Columns.Add("Sign7Date", typeof(string));
-                DtSigns.Columns.Add("Sign8Date", typeof(string));
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-            else if (rowsid == 2)
-            {
-                DtSigns.Columns.Add("Sign3Date", typeof(string));
-                DtSigns.Columns.Add("Sign4Date", typeof(string));
-                DtSigns.Columns.Add("Sign5Date", typeof(string));
-                DtSigns.Columns.Add("Sign6Date", typeof(string));
-                DtSigns.Columns.Add("Sign7Date", typeof(string));
-                DtSigns.Columns.Add("Sign8Date", typeof(string));
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-            else if (rowsid == 3)
-            {
-                DtSigns.Columns.Add("Sign4Date", typeof(string));
-                DtSigns.Columns.Add("Sign5Date", typeof(string));
-                DtSigns.Columns.Add("Sign6Date", typeof(string));
-                DtSigns.Columns.Add("Sign7Date", typeof(string));
-                DtSigns.Columns.Add("Sign8Date", typeof(string));
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-            else if (rowsid == 4)
-            {
-                DtSigns.Columns.Add("Sign5Date", typeof(string));
-                DtSigns.Columns.Add("Sign6Date", typeof(string));
-                DtSigns.Columns.Add("Sign7Date", typeof(string));
-                DtSigns.Columns.Add("Sign8Date", typeof(string));
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-            else if (rowsid == 5)
-            {
-                DtSigns.Columns.Add("Sign6Date", typeof(string));
-                DtSigns.Columns.Add("Sign7Date", typeof(string));
-                DtSigns.Columns.Add("Sign8Date", typeof(string));
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-            else if (rowsid == 6)
-            {
-                DtSigns.Columns.Add("Sign7Date", typeof(string));
-                DtSigns.Columns.Add("Sign8Date", typeof(string));
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-            else if (rowsid == 7)
-            {
-                DtSigns.Columns.Add("Sign8Date", typeof(string));
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-            else if (rowsid == 8)
-            {
-                DtSigns.Columns.Add("Sign9Date", typeof(string));
-            }
-
-            rowsid = -1;
-            foreach (DataRow dr in dtremindnew.Rows)
-            {
-                rowsid++;
-                DtSigns.Columns.Add("Sign" + rowsid.ToString() + "Signer", typeof(string));
-            }
-            if (rowsid == -1)
-            {
-                DtSigns.Columns.Add("Sign0Signer", typeof(string));
-                DtSigns.Columns.Add("Sign1Signer", typeof(string));
-                DtSigns.Columns.Add("Sign2Signer", typeof(string));
-                DtSigns.Columns.Add("Sign3Signer", typeof(string));
-                DtSigns.Columns.Add("Sign4Signer", typeof(string));
-                DtSigns.Columns.Add("Sign5Signer", typeof(string));
-                DtSigns.Columns.Add("Sign6Signer", typeof(string));
-                DtSigns.Columns.Add("Sign7Signer", typeof(string));
-                DtSigns.Columns.Add("Sign8Signer", typeof(string));
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-            }
-            if (rowsid == 0)
-            {
-                DtSigns.Columns.Add("Sign1Signer", typeof(string));
-                DtSigns.Columns.Add("Sign2Signer", typeof(string));
-                DtSigns.Columns.Add("Sign3Signer", typeof(string));
-                DtSigns.Columns.Add("Sign4Signer", typeof(string));
-                DtSigns.Columns.Add("Sign5Signer", typeof(string));
-                DtSigns.Columns.Add("Sign6Signer", typeof(string));
-                DtSigns.Columns.Add("Sign7Signer", typeof(string));
-                DtSigns.Columns.Add("Sign8Signer", typeof(string));
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-            }
-            else if (rowsid == 1)
-            {
-                DtSigns.Columns.Add("Sign2Signer", typeof(string));
-                DtSigns.Columns.Add("Sign3Signer", typeof(string));
-                DtSigns.Columns.Add("Sign4Signer", typeof(string));
-                DtSigns.Columns.Add("Sign5Signer", typeof(string));
-                DtSigns.Columns.Add("Sign6Signer", typeof(string));
-                DtSigns.Columns.Add("Sign7Signer", typeof(string));
-                DtSigns.Columns.Add("Sign8Signer", typeof(string));
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-
-            }
-            else if (rowsid == 2)
-            {
-                DtSigns.Columns.Add("Sign3Signer", typeof(string));
-                DtSigns.Columns.Add("Sign4Signer", typeof(string));
-                DtSigns.Columns.Add("Sign5Signer", typeof(string));
-                DtSigns.Columns.Add("Sign6Signer", typeof(string));
-                DtSigns.Columns.Add("Sign7Signer", typeof(string));
-                DtSigns.Columns.Add("Sign8Signer", typeof(string));
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-
-            }
-            else if (rowsid == 3)
-            {
-                DtSigns.Columns.Add("Sign4Signer", typeof(string));
-                DtSigns.Columns.Add("Sign5Signer", typeof(string));
-                DtSigns.Columns.Add("Sign6Signer", typeof(string));
-                DtSigns.Columns.Add("Sign7Signer", typeof(string));
-                DtSigns.Columns.Add("Sign8Signer", typeof(string));
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-
-            }
-            else if (rowsid == 4)
-            {
-                DtSigns.Columns.Add("Sign5Signer", typeof(string));
-                DtSigns.Columns.Add("Sign6Signer", typeof(string));
-                DtSigns.Columns.Add("Sign7Signer", typeof(string));
-                DtSigns.Columns.Add("Sign8Signer", typeof(string));
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-
-            }
-            else if (rowsid == 5)
-            {
-                DtSigns.Columns.Add("Sign6Signer", typeof(string));
-                DtSigns.Columns.Add("Sign7Signer", typeof(string));
-                DtSigns.Columns.Add("Sign8Signer", typeof(string));
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-            }
-            else if (rowsid == 6)
-            {
-                DtSigns.Columns.Add("Sign7Signer", typeof(string));
-                DtSigns.Columns.Add("Sign8Signer", typeof(string));
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-            }
-            else if (rowsid == 7)
-            {
-                DtSigns.Columns.Add("Sign8Signer", typeof(string));
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-            }
-            else if (rowsid == 8)
-            {
-                DtSigns.Columns.Add("Sign9Signer", typeof(string));
-            }
-            DtSigns.Rows.Add();
-            rowsid = 0;
-            foreach (DataRow dr in dtremindnew.Rows)
-            {
-                DtSigns.Rows[0][rowsid] = dr["USR_sign"];
-                DtSigns.Rows[0][10 + rowsid] = dr["SignDate"].ToString();
-                DtSigns.Rows[0][20 + rowsid] = dr["Name"].ToString();
-                rowsid++;
-            }
-            return DtSigns;
-        }
-
-        public string[] yekan = new string[10] { "صفر", "يک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه" };
-        public string[] dahgan = new string[10] { "", "", "بيست", "سي", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود" };
-        public string[] dahyek = new string[10] { "ده", "يازده", "دوازده", "سيزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده" };
-        public string[] sadgan = new string[10] { "", "يکصد", "دويست", "سيصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد" };
-        public string[] basex = new string[5] { "", "هزار", "ميليون", "ميليارد", "تريليون" };
-
-        public string num2sr(string snum)
+        public static string num2sr(string snum)
         {
             string[] sum2 = snum.Split('/');
             if (sum2.Length == 1)
@@ -1560,7 +1471,7 @@ order by IS_SignDate", cp.connect()))
             }
             return stotal;
         }
-        public string getnum3(int num3)
+        public static string getnum3(int num3)
         {
             string s = "";
             int d3, d12;
@@ -1594,6 +1505,11 @@ order by IS_SignDate", cp.connect()))
             int UserId = HttpContext.Items["UserId"].ToInt();
             try
             {
+                if (request.Type==2)//ورود با کاربری
+                {
+                    if (string.IsNullOrEmpty(request.CustomerID.ToString()))
+                        return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "مشتری انتخاب نشده است");
+                }
                 if (request.Date == default(DateTime))
                 {
                     return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "تاریخ را وارد نمایید");
@@ -1633,6 +1549,16 @@ order by IS_SignDate", cp.connect()))
             else if (TypeSale == 3)
                 TypeSale = 2;
 
+            int custid = 0;
+            if (request.Type == 2)//ورود با کاربری
+            {
+                custid = request.CustomerID;
+            }
+            if (request.Type == 1)//ورود با مشتری
+            {
+                custid = UserId;
+            }
+
             string Description = request.Description;
             int Location = request.Location;
             string Address = request.Address;
@@ -1646,7 +1572,7 @@ order by IS_SignDate", cp.connect()))
             header.Columns.Add("Description", typeof(string));
             header.Columns.Add("Location", typeof(int));
             header.Columns.Add("Address", typeof(string));
-            header.Rows.Add(UserId, SalesExpert, Date, expire_date, TypeSale, Description, Location, Address);
+            header.Rows.Add(custid, SalesExpert, Date, expire_date, TypeSale, Description, Location, Address);
             DataTable listitem = new DataTable();
             listitem.Columns.Add("is_id", typeof(int));
             listitem.Columns.Add("stock_id", typeof(int));
@@ -1745,6 +1671,11 @@ order by IS_SignDate", cp.connect()))
             int UserId = HttpContext.Items["UserId"].ToInt();
             try
             {
+                if (request.Type == 2)//ورود با کاربری
+                {
+                    if (string.IsNullOrEmpty(request.CustomerID.ToString()))
+                        return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "مشتری انتخاب نشده است");
+                }
                 if (request.Date == default(DateTime))
                 {
                     return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "تاریخ را وارد نمایید");
@@ -1774,6 +1705,15 @@ order by IS_SignDate", cp.connect()))
             {
                 return messagebase.messages(false, ErrorCode.BadRequest.GetHashCode(), "داده های ارسال شده ناقص میباشد");
             }
+            int custid = 0;
+            if (request.Type == 2)//ورود با کاربری
+            {
+                custid = request.CustomerID;
+            }
+            if (request.Type == 1)//ورود با مشتری
+            {
+                custid = UserId;
+            }
             DateTime Date = request.Date;
             int TypeSale = request.TypeSale;
             string Description = request.Description;
@@ -1788,7 +1728,7 @@ order by IS_SignDate", cp.connect()))
             header.Columns.Add("Description", typeof(string));
             header.Columns.Add("Location", typeof(int));
             header.Columns.Add("Address", typeof(string));
-            header.Rows.Add(UserId, SalesExpert, Date, TypeSale, Description, Location, Address);
+            header.Rows.Add(custid, SalesExpert, Date, TypeSale, Description, Location, Address);
             DataTable listitem = new DataTable();
             listitem.Columns.Add("is_id", typeof(int));
             listitem.Columns.Add("stock_id", typeof(int));
@@ -2076,8 +2016,8 @@ order by IS_SignDate", cp.connect()))
         }
         [Authorize]
         [HttpGet]
-        [Route("api/[controller]/GetQuotationsList/{Period}")]
-        public string GetQuotationsList(int? Period)//[FromQuery] ListRequest request)
+        [Route("api/[controller]/GetQuotationsList/{Period}/{Type}")]
+        public string GetQuotationsList(int? Period, int? Type)//[FromQuery] ListRequest request)
         {
             //if (request.page_number < 1)
             //{
@@ -2105,16 +2045,34 @@ order by IS_SignDate", cp.connect()))
                 dtyears = cp.GetDateTimeInvariantCulture().AddDays(-diff.Days);
             }
             DataTable dt_Quotations = new DataTable();
-            using (SqlCommand _command = new SqlCommand("API_ListQuotations", cp.connect()))
+            if (Type == 2)
             {
-                _command.CommandType = CommandType.StoredProcedure;
-                _command.Parameters.AddWithValue("@Customer_id", UserId);
-                _command.Parameters.AddWithValue("@FormId", 0);
-                _command.Parameters.AddWithValue("@date", dtyears.Date);
-
-                using (SqlDataAdapter adapter = new SqlDataAdapter(_command))
+                using (SqlCommand _command = new SqlCommand("API_ListQuotationsUser", cp.connect()))
                 {
-                    adapter.Fill(dt_Quotations);
+                    _command.CommandType = CommandType.StoredProcedure;
+                    _command.Parameters.AddWithValue("@Usr_id", UserId);
+                    _command.Parameters.AddWithValue("@FormId", 0);
+                    _command.Parameters.AddWithValue("@date", dtyears.Date);
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(_command))
+                    {
+                        adapter.Fill(dt_Quotations);
+                    }
+                }
+            }
+            if (Type == 1)
+            {
+                using (SqlCommand _command = new SqlCommand("API_ListQuotations", cp.connect()))
+                {
+                    _command.CommandType = CommandType.StoredProcedure;
+                    _command.Parameters.AddWithValue("@Customer_id", UserId);
+                    _command.Parameters.AddWithValue("@FormId", 0);
+                    _command.Parameters.AddWithValue("@date", dtyears.Date);
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(_command))
+                    {
+                        adapter.Fill(dt_Quotations);
+                    }
                 }
             }
             //SqlParameter[] parameters = new SqlParameter[]
@@ -2165,6 +2123,8 @@ order by IS_SignDate", cp.connect()))
                     {
                         FormID = row["FormID"].ToInt(),
                         Pm = row["Pm"].ToBoolean(),
+                        CustomersName = row["CustomersName"].ToString(),
+                        Cstid = row["cst_id"].ToInt(),
                         StatePay = row["StatePay"].ToString(), // چون nullable هست
                         TypeRequest = row["TypeRequest"].ToBoolean(),
                         dateForm = row["dateForm"].ToString(),
@@ -2205,8 +2165,8 @@ order by IS_SignDate", cp.connect()))
 
         [Authorize]
         [HttpGet]
-        [Route("api/[controller]/Quotation/{QuotationId}")]
-        public string GetQuotations(int? QuotationId)
+        [Route("api/[controller]/Quotation/{QuotationId}/{Type}")]
+        public string GetQuotations(int? QuotationId, int? Type)
         {
             if (QuotationId == null)
             {
@@ -2218,19 +2178,40 @@ order by IS_SignDate", cp.connect()))
             DataTable dt_Quotations = new DataTable();
             DateTime dtyears = ShamsiDate.Shamsi2Miladi(cp.GetDateTime().Year.ToString() + "/01/01");
 
-            using (SqlCommand _command = new SqlCommand("API_ListQuotations", cp.connect()))
+            if (Type == 2)
             {
-                _command.CommandType = CommandType.StoredProcedure;
-
-                _command.Parameters.AddWithValue("@Customer_id", UserId);
-                _command.Parameters.AddWithValue("@FormId", QuotationId);
-                _command.Parameters.AddWithValue("@date", dtyears.Date);
-
-                using (SqlDataAdapter adapter = new SqlDataAdapter(_command))
+                using (SqlCommand _command = new SqlCommand("API_ListQuotationsUser", cp.connect()))
                 {
-                    adapter.Fill(dt_Quotations);
+                    _command.CommandType = CommandType.StoredProcedure;
+
+                    _command.Parameters.AddWithValue("@Usr_id", UserId);
+                    _command.Parameters.AddWithValue("@FormId", QuotationId);
+                    _command.Parameters.AddWithValue("@date", dtyears.Date);
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(_command))
+                    {
+                        adapter.Fill(dt_Quotations);
+                    }
                 }
             }
+            if (Type == 1)
+            {
+                using (SqlCommand _command = new SqlCommand("API_ListQuotations", cp.connect()))
+                {
+                    _command.CommandType = CommandType.StoredProcedure;
+
+                    _command.Parameters.AddWithValue("@Customer_id", UserId);
+                    _command.Parameters.AddWithValue("@FormId", QuotationId);
+                    _command.Parameters.AddWithValue("@date", dtyears.Date);
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(_command))
+                    {
+                        adapter.Fill(dt_Quotations);
+                    }
+                }
+            }
+            
+            
             //SqlParameter[] parameters = new SqlParameter[]
             //{
             //        new SqlParameter("Customer_id",UserId),
@@ -2298,11 +2279,12 @@ order by IS_SignDate", cp.connect()))
                     //    QU_status = string.IsNullOrEmpty(dt_Quotations.Rows[0]["QU_Status"].ToString()) ? null : dt_Quotations.Rows[0]["QU_Status"].ToInt(),
                     //    INV_status = string.IsNullOrEmpty(dt_Quotations.Rows[0]["INV_Status"].ToString()) ? null : dt_Quotations.Rows[0]["INV_Status"].ToInt(),
                     //};
-
                     Quotations = new crmQuotationsResponseModel()
                     {
                         FormID = dt_Quotations.Rows[0]["FormID"].ToInt(),
                         Pm = dt_Quotations.Rows[0]["Pm"].ToBoolean(),
+                        Cstid = dt_Quotations.Rows[0]["Cstid"].ToInt(),
+                        CustomersName = dt_Quotations.Rows[0]["CustomersName"].ToString(), 
                         StatePay = dt_Quotations.Rows[0]["StatePay"].ToString(), // چون nullable هست
                         TypeRequest = dt_Quotations.Rows[0]["TypeRequest"].ToBoolean(),
                         dateForm = dt_Quotations.Rows[0]["dateForm"].ToString(),

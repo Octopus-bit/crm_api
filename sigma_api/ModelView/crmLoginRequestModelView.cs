@@ -9,5 +9,6 @@ namespace sigma_api.ModelView
     {
         public string username { get; set; }
         public string password { get; set; }
+        public int Type { get; set; }
     }
 }

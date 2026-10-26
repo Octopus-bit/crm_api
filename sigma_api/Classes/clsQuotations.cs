@@ -4,9 +4,18 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using Microsoft.Graph.Models;
+using Microsoft.Kiota.Abstractions;
+using Microsoft.OpenApi.Models;
+using Newtonsoft.Json;
 using sigma_api.classes;
+using sigma_api.Controllers;
+using sigma_api.ModelView;
 using sigma_api.Security;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace sigma_api.Classes
 {
@@ -20,6 +29,7 @@ namespace sigma_api.Classes
         public int scaler = 0; // شناسه پیش فاکتور
         public int number = 0;
         private cls_public cp = new cls_public();
+        public static  cls_public cp2 = new cls_public();
         bool checktrn2 = false;
         bool checkinsert = false;
         private SqlTransaction transaction;
@@ -155,7 +165,6 @@ namespace sigma_api.Classes
             decimal txtfinal = 0;
             foreach (DataRow dr in listItem.Rows)
             {
-
                 sumprice = sumprice + decimal.Parse(dr["price"].ToString());
                 decimal priceDescount = ((decimal.Parse(dr["price"].ToString()) * decimal.Parse(dr["discountCustomer"].ToString())) / 100);
                 sumdescount = sumdescount + priceDescount;
@@ -173,19 +182,11 @@ namespace sigma_api.Classes
             command.Parameters.Add("@duty", SqlDbType.Decimal).Value = 0;
             command.Parameters.Add("@NetPrice", SqlDbType.Decimal).Value = decimal.Parse(txtfinal.ToString("F4"));
             command.Parameters.Add("@Price", SqlDbType.Decimal).Value = decimal.Parse(sumprice.ToString("F4"));
-
             command.Parameters.Add("@typeMoneySale", SqlDbType.Bit).Value = 0;
-
             command.Parameters.Add("@desc", SqlDbType.NVarChar, 4000).Value = Header["Description"].ToString();
-
-
             command.Parameters.Add("@date", SqlDbType.DateTime).Value = Convert.ToDateTime(Header["Date"]).Date;
-
             command.Parameters.Add("@dateexpired", SqlDbType.DateTime).Value = Convert.ToDateTime(Header["expire_date"]).Date; // تاریخ انقضا
-
             command.Parameters.Add("@Tamin", SqlDbType.Int).Value = DBNull.Value;
-
-
 
             try
             {
@@ -332,6 +333,14 @@ namespace sigma_api.Classes
                                 string text = Convert.ToString(command.ExecuteScalar());
                                 transaction?.Commit();
                                 cp.close();
+
+                                //if (insertbuyPortalType == 0)
+                                //    command.Parameters.Add("@typee", SqlDbType.TinyInt).Value = 0;
+                                if (insertbuyPortalType == 1)
+                                    cp.SendSmsToDatabase("2", "2", "1", Header["CustomerId"].ToString(), scaler.ToString(), "تایید پیش فاکتور ");
+                                if (insertbuyPortalType == 0)
+                                    cp.SendSmsToDatabase("2", "2", "0", Header["CustomerId"].ToString(), scaler.ToString(), "ثبت پیش فاکتور ");
+
                                 return number;
                                 /*if (chkTypeTasvie.SelectedValue.ToBoolean())
                                 {
@@ -477,6 +486,315 @@ namespace sigma_api.Classes
             catch{ }
             return 0;
         }
+//        public DataTable GetSignerForm(Report report, int formtypeid, string formid)
+//        {
+//            DataTable DtSigns = new DataTable();
+//            DataSet _DS = new DataSet();
+//            SqlDataAdapter _DA = new SqlDataAdapter();
+//            SqlCommand Command2 = new SqlCommand(@"select USR_sign,dbo.mtsh(IS_SignDate) SignDate,PRG_Users.Name from [dbo].[PRG_InsertSigns]
+//join PRG_Users on USR_id=IS_usr_id  where  IS_formtypeid=" + formtypeid.ToString() + " and IS_formid=" + formid + @" and [USR_sign] is not null
+//order by IS_SignDate", cp2.connect());
+//            try { if (cp2.connect().State == System.Data.ConnectionState.Closed) cp2.connect().Open(); }
+//            catch { }
+//            Command2.CommandType = CommandType.Text;
+//            _DA.SelectCommand = Command2;
+//            try { if (cp2.connect().State == System.Data.ConnectionState.Closed) cp2.connect().Open(); }
+//            catch { }
+//            _DA.Fill(_DS);
+//            try { if (cp2.connect().State == System.Data.ConnectionState.Open) cp2.connect().Close(); }
+//            catch { }
+//            int rowsid = -1;
+//            foreach (DataRow dr in _DS.Tables[0].Rows)
+//            {
+//                rowsid++;
+//                DtSigns.Columns.Add("Sign" + rowsid.ToString(), typeof(Byte[]));
+//            }
+
+//            if (rowsid == -1)
+//            {
+//                DtSigns.Columns.Add("Sign0", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign1", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign2", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign3", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+//            }
+//            if (rowsid == 0)
+//            {
+//                DtSigns.Columns.Add("Sign1", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign2", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign3", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+//            }
+//            else if (rowsid == 1)
+//            {
+//                DtSigns.Columns.Add("Sign2", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign3", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+
+//            }
+//            else if (rowsid == 2)
+//            {
+//                DtSigns.Columns.Add("Sign3", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+//            }
+//            else if (rowsid == 3)
+//            {
+//                DtSigns.Columns.Add("Sign4", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+//            }
+//            else if (rowsid == 4)
+//            {
+//                DtSigns.Columns.Add("Sign5", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+//            }
+//            else if (rowsid == 5)
+//            {
+//                DtSigns.Columns.Add("Sign6", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+//            }
+//            else if (rowsid == 6)
+//            {
+//                DtSigns.Columns.Add("Sign7", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+//            }
+//            else if (rowsid == 7)
+//            {
+//                DtSigns.Columns.Add("Sign8", typeof(Byte[]));
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+//            }
+//            else if (rowsid == 8)
+//            {
+//                DtSigns.Columns.Add("Sign9", typeof(Byte[]));
+//            }
+
+//            rowsid = -1;
+//            foreach (DataRow dr in _DS.Tables[0].Rows)
+//            {
+//                rowsid++;
+//                DtSigns.Columns.Add("Sign" + rowsid.ToString() + "Date", typeof(string));
+//            }
+//            if (rowsid == -1)
+//            {
+//                DtSigns.Columns.Add("Sign0Date", typeof(string));
+//                DtSigns.Columns.Add("Sign1Date", typeof(string));
+//                DtSigns.Columns.Add("Sign2Date", typeof(string));
+//                DtSigns.Columns.Add("Sign3Date", typeof(string));
+//                DtSigns.Columns.Add("Sign4Date", typeof(string));
+//                DtSigns.Columns.Add("Sign5Date", typeof(string));
+//                DtSigns.Columns.Add("Sign6Date", typeof(string));
+//                DtSigns.Columns.Add("Sign7Date", typeof(string));
+//                DtSigns.Columns.Add("Sign8Date", typeof(string));
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+//            if (rowsid == 0)
+//            {
+//                DtSigns.Columns.Add("Sign1Date", typeof(string));
+//                DtSigns.Columns.Add("Sign2Date", typeof(string));
+//                DtSigns.Columns.Add("Sign3Date", typeof(string));
+//                DtSigns.Columns.Add("Sign4Date", typeof(string));
+//                DtSigns.Columns.Add("Sign5Date", typeof(string));
+//                DtSigns.Columns.Add("Sign6Date", typeof(string));
+//                DtSigns.Columns.Add("Sign7Date", typeof(string));
+//                DtSigns.Columns.Add("Sign8Date", typeof(string));
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+//            else if (rowsid == 1)
+//            {
+//                DtSigns.Columns.Add("Sign2Date", typeof(string));
+//                DtSigns.Columns.Add("Sign3Date", typeof(string));
+//                DtSigns.Columns.Add("Sign4Date", typeof(string));
+//                DtSigns.Columns.Add("Sign5Date", typeof(string));
+//                DtSigns.Columns.Add("Sign6Date", typeof(string));
+//                DtSigns.Columns.Add("Sign7Date", typeof(string));
+//                DtSigns.Columns.Add("Sign8Date", typeof(string));
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+//            else if (rowsid == 2)
+//            {
+//                DtSigns.Columns.Add("Sign3Date", typeof(string));
+//                DtSigns.Columns.Add("Sign4Date", typeof(string));
+//                DtSigns.Columns.Add("Sign5Date", typeof(string));
+//                DtSigns.Columns.Add("Sign6Date", typeof(string));
+//                DtSigns.Columns.Add("Sign7Date", typeof(string));
+//                DtSigns.Columns.Add("Sign8Date", typeof(string));
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+//            else if (rowsid == 3)
+//            {
+//                DtSigns.Columns.Add("Sign4Date", typeof(string));
+//                DtSigns.Columns.Add("Sign5Date", typeof(string));
+//                DtSigns.Columns.Add("Sign6Date", typeof(string));
+//                DtSigns.Columns.Add("Sign7Date", typeof(string));
+//                DtSigns.Columns.Add("Sign8Date", typeof(string));
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+//            else if (rowsid == 4)
+//            {
+//                DtSigns.Columns.Add("Sign5Date", typeof(string));
+//                DtSigns.Columns.Add("Sign6Date", typeof(string));
+//                DtSigns.Columns.Add("Sign7Date", typeof(string));
+//                DtSigns.Columns.Add("Sign8Date", typeof(string));
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+//            else if (rowsid == 5)
+//            {
+//                DtSigns.Columns.Add("Sign6Date", typeof(string));
+//                DtSigns.Columns.Add("Sign7Date", typeof(string));
+//                DtSigns.Columns.Add("Sign8Date", typeof(string));
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+//            else if (rowsid == 6)
+//            {
+//                DtSigns.Columns.Add("Sign7Date", typeof(string));
+//                DtSigns.Columns.Add("Sign8Date", typeof(string));
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+//            else if (rowsid == 7)
+//            {
+//                DtSigns.Columns.Add("Sign8Date", typeof(string));
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+//            else if (rowsid == 8)
+//            {
+//                DtSigns.Columns.Add("Sign9Date", typeof(string));
+//            }
+
+//            rowsid = -1;
+//            foreach (DataRow dr in _DS.Tables[0].Rows)
+//            {
+//                rowsid++;
+//                DtSigns.Columns.Add("Sign" + rowsid.ToString() + "Signer", typeof(string));
+//            }
+//            if (rowsid == -1)
+//            {
+//                DtSigns.Columns.Add("Sign0Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign1Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign2Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign3Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign4Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign5Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign6Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign7Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign8Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+//            }
+//            if (rowsid == 0)
+//            {
+//                DtSigns.Columns.Add("Sign1Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign2Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign3Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign4Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign5Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign6Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign7Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign8Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+//            }
+//            else if (rowsid == 1)
+//            {
+//                DtSigns.Columns.Add("Sign2Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign3Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign4Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign5Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign6Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign7Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign8Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+
+//            }
+//            else if (rowsid == 2)
+//            {
+//                DtSigns.Columns.Add("Sign3Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign4Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign5Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign6Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign7Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign8Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+
+//            }
+//            else if (rowsid == 3)
+//            {
+//                DtSigns.Columns.Add("Sign4Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign5Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign6Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign7Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign8Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+
+//            }
+//            else if (rowsid == 4)
+//            {
+//                DtSigns.Columns.Add("Sign5Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign6Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign7Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign8Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+
+//            }
+//            else if (rowsid == 5)
+//            {
+//                DtSigns.Columns.Add("Sign6Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign7Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign8Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+//            }
+//            else if (rowsid == 6)
+//            {
+//                DtSigns.Columns.Add("Sign7Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign8Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+//            }
+//            else if (rowsid == 7)
+//            {
+//                DtSigns.Columns.Add("Sign8Signer", typeof(string));
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+//            }
+//            else if (rowsid == 8)
+//            {
+//                DtSigns.Columns.Add("Sign9Signer", typeof(string));
+//            }
+//            DtSigns.Rows.Add();
+//            rowsid = 0;
+//            foreach (DataRow dr in _DS.Tables[0].Rows)
+//            {
+//                DtSigns.Rows[0][rowsid] = dr["USR_sign"];
+//                DtSigns.Rows[0][10 + rowsid] = dr["SignDate"].ToString();
+//                DtSigns.Rows[0][20 + rowsid] = dr["Name"].ToString();
+//                rowsid++;
+//            }
+//            return DtSigns;
+//        }
 
         void maliatavarez()
         {

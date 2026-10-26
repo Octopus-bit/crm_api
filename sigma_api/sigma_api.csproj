@@ -4,8 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <UserSecretsId>c1b9fa78-8131-4aed-996c-3f0d72ec4644</UserSecretsId>
     <Version>1.1.2</Version>
-    <AssemblyVersion>1.2.1.0</AssemblyVersion>
-    <FileVersion>1.2.1.0</FileVersion>
+    <AssemblyVersion>1.4.45.0</AssemblyVersion>
+    <FileVersion>1.4.61.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

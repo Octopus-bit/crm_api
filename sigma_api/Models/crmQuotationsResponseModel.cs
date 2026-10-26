@@ -9,6 +9,8 @@ namespace sigma_api.Models
     {
         public int FormID { get; set; } // شناسه خرید
         public bool Pm { get; set; } // پیام دارد یا نه
+        public string CustomersName { get; set; } // مشتری
+        public int Cstid { get; set; } // شناسه مشتری
         public string StatePay { get; set; } // وضعیت خرید
         public bool TypeRequest { get; set; }//نوع درخواست
         public string dateForm { get; set; } // تاریخ خرید

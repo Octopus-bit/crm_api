@@ -15,6 +15,8 @@ namespace sigma_api.ModelView
         public string Address { get; set; } // ادرس محل تحویل
         public int TypeSale { get; set; } // نوع فروش - نقدری / اعتباری / نقدی اعتباری
         public int SalesExpert { get; set; } // کارشناس فروش
+        public int Type { get; set; }//نوع ورود  کاربر / مشتری
+        public int CustomerID { get; set; }// مشتری
         public Item[] Items { get; set; }
         public class Item
         {

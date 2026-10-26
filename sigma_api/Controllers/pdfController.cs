@@ -15,6 +15,7 @@ using sigma_api.ModelView;
 using sigma_api.Models;
 using Newtonsoft.Json;
 using System.Text;
+using static Microsoft.Graph.Constants;
 
 namespace sigma_api.Controllers
 {
@@ -44,43 +45,73 @@ namespace sigma_api.Controllers
             //var content = new StringContent(json, Encoding.UTF8, "application/json");
             return json;
         }
-
+        [HttpPost]
+        [Route("api/[Controller]/addByte")]
+        public string add_pdfByte([FromBody] pdfRequestModelView pdf)
+        {
+            Classes.Library.WriteErrorLog(
+        "pdf null = " + (pdf == null) +
+        " | localurl = " + (pdf?.localurl ?? "NULL") +
+        " | BytePdf Length = " + (pdf?.BytePdf?.Length ?? 0)
+    );
+            pdfResponseModelView res;
+            pdfModel pdf_web_url = new pdfModel();
+            //string id = db.TblSendPdf_insertByte(pdf.BytePdf, pdf.localurl);
+            if (!string.IsNullOrEmpty(pdf.localurl) && !pdf.localurl.StartsWith("Error"))
+            {
+                if (Request.IsHttps)
+                    pdf_web_url.weburl = "https://" + Request.Host.ToString() + "/api/pdf/infoByte/" + pdf.localurl;
+                else
+                    pdf_web_url.weburl = "http://" + Request.Host.ToString() + "/api/pdf/infoByte/" + pdf.localurl;
+                res = new pdfResponseModelView(pdf_web_url);
+            }
+            else
+                res = new pdfResponseModelView(pdf.localurl);
+            string json = JsonConvert.SerializeObject(res);
+            //var content = new StringContent(json, Encoding.UTF8, "application/json");
+            return json;
+        }
         [HttpGet]
         [Route("api/[Controller]/info/{id}")]
-       /* public IActionResult open()
-        {
-            int id = int.Parse(Request.RouteValues["id"].ToString());//int.Parse(Security.coding.DecryptString(Request.RouteValues["id"].ToString()));
-            string url = db.Get_Url(id).Rows[0]["urls"].ToString();
-            return Redirect(url);
-
-        }
-
-        [HttpGet]
-        [Route("api/[Controller]/open")]*/
         public IActionResult open()
-
         {
-
             // آدرس فایل PDF محلی را مشخص کنید
             string id = Request.RouteValues["id"].ToString();//int.Parse(Security.coding.DecryptString(Request.RouteValues["id"].ToString()));
             DataTable dt = db.TblSendPdf_SelectLocalUrlByid(id);
             string url = dt.Rows[0]["local_url"].ToString();
+          //  Classes.Library.WriteErrorLog(" url " + url);
             var pdfPath = Path.Combine(Directory.GetCurrentDirectory(), url);
-
 
             if (!System.IO.File.Exists(pdfPath))
 
             {
-
-                return NotFound(); // اگر فایل موجود نباشد
+                return NotFound();
+                // اگر فایل موجود نباشد
 
             }
+                var fileStream = new FileStream(pdfPath, FileMode.Open, FileAccess.Read);
+                return File(fileStream, "application/pdf", Path.GetFileName(pdfPath));
 
+        }
+        [HttpGet]
+        [Route("api/[Controller]/infoByte/{id}")]
+        public IActionResult openByte()
+        {
+            string id = Request.RouteValues["id"].ToString();//int.Parse(Security.coding.DecryptString(Request.RouteValues["id"].ToString()));
+            DataTable dt = db.TblSendPdf_SelectLocalUrlByteByid(id);
+            byte[] bytePdf= (byte[])dt.Rows[0]["BytePdf"];
+            string url = dt.Rows[0]["local_url"].ToString();
+            //  Classes.Library.WriteErrorLog(" url " + url);
+            //var pdfPath = Path.Combine(Directory.GetCurrentDirectory(), url);
 
-            var fileStream = new FileStream(pdfPath, FileMode.Open, FileAccess.Read);
-
-            return File(fileStream, "application/pdf", Path.GetFileName(pdfPath));
-
+            //if (!System.IO.File.Exists(pdfPath))
+            //{
+            //    return NotFound();
+            //    // اگر فایل موجود نباشد
+            //}
+            //var fileStream = new FileStream(pdfPath, FileMode.Open, FileAccess.Read);
+            //return File(fileStream, "application/pdf", Path.GetFileName(pdfPath));
+            return File(bytePdf, "application/pdf", url + ".pdf");
         }
 
     }
